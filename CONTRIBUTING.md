@@ -8,6 +8,8 @@ Thanks for helping. This repo is an OSS **pilot** of a thin MCP sidecar/plugin. 
 
 HITL and audit PRs are welcome only when they serve that re-approval path.
 
+New here? Start with good first issues **[#3](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/3)** (hash-pin), **[#4](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/4)** (`tools/list` diff), and **[#8](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/8)** (audit JSONL).
+
 Please read the locked [README MVP IN / OUT](README.md#mvp-in--out-locked) and epic [#1](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/1) before writing code.
 
 ## Keep the MVP sharp

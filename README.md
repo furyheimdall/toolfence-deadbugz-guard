@@ -8,6 +8,14 @@ It sits **beside** the agent’s existing MCP path. It does not replace that pat
 
 OSS pilot of the Deadbugz triangle: **pin → diff → fail-closed re-approval**, plus the minimum HITL and local audit hooks that path needs.
 
+## Get involved
+
+Good first issues — IN-loop slices only ([CONTRIBUTING](CONTRIBUTING.md#good-first-issues)):
+
+- [#3](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/3) hash-pin
+- [#4](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/4) `tools/list` diff
+- [#8](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/8) audit JSONL
+
 ## Language
 
 **Go** (module `github.com/furyheimdall/toolfence-deadbugz-guard`).
@@ -53,7 +61,7 @@ go build -o bin/mock-mcp-deadbugz ./cmd/mock-mcp-deadbugz
   --hitl http://127.0.0.1:8765 --call-gate 3 -- ./bin/mock-mcp-deadbugz
 ```
 
-Host plugin shape (Cursor / Claude Desktop style) is in [`examples/plugin.json`](examples/plugin.json).
+Host plugin shape (Cursor / Claude Desktop style) is in [`examples/plugin.json`](examples/plugin.json). One-pager: [plugin guide](docs/plugin-guide.md).
 
 Flags / env: `--pin` / `PIN_PATH`, `--audit` / `AUDIT_PATH`, `--hitl` / `HITL_ENDPOINT`, `--call-gate` / `CALL_GATE` (Deadbugz path, default **3**).
 
@@ -82,6 +90,8 @@ docker compose up --build
 
 `FLIP_PATH` is a JSON state file `{ "mode": "benign\|poison\|add\|remove\|reorder\|deadbugz", "call_gate": 3 }`. Mode changes use **atomic `mv` only** (`WriteFlip`: temp write → rename). Example: [`testdata/flip.json`](testdata/flip.json).
 
+Allow vs deny visual: [docs/assets/smoke-allow-deny.svg](docs/assets/smoke-allow-deny.svg) · how to re-run: [docs/demo.md](docs/demo.md).
+
 ## MVP IN / OUT (locked)
 
 **IN:** Deadbugz triangle (hash-pin → `tools/list` diff → fail-closed re-approval) + minimal HITL/audit as sidecar/plugin only.
@@ -106,6 +116,9 @@ If a change needs a full gateway, remote SIEM, or prompt-layer product, it is ou
 ## Docs
 
 - [Landing](docs/landing.md) — positioning for the OSS pilot
+- [Launch note](docs/launch-note.md) — one-line position, Install/landing links, GitHub About paste
+- [Plugin guide](docs/plugin-guide.md) — Cursor / Claude Desktop wrap via `examples/plugin.json`
+- [Demo](docs/demo.md) — benign → allow vs poison → deny, plus smoke replay
 - [Security](SECURITY.md) — threat model for the MVP loop
 - [Contributing](CONTRIBUTING.md) — scope rules and PR checklist
 
