@@ -8,34 +8,15 @@ Thanks for helping. This repo is an OSS **pilot** of a thin MCP sidecar/plugin. 
 
 HITL and audit PRs are welcome only when they serve that re-approval path.
 
-Please read the [README](README.md) MVP **IN** / **OUT** lists and epic [#1](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/1) before writing code.
+Please read the locked [README MVP IN / OUT](README.md#mvp-in--out-locked) and epic [#1](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/1) before writing code.
 
 ## Keep the MVP sharp
 
-In scope (see README):
+**IN:** Deadbugz triangle (hash-pin → `tools/list` diff → fail-closed re-approval) + minimal HITL/audit as sidecar/plugin only.
 
-- hash-pin of tool definitions
-- `tools/list` diff against pin
-- fail-closed until re-approval
-- minimal HITL hook
-- minimal local audit (JSONL)
-- ship as sidecar/plugin (Obot / Docker / Lunar-style)
+**OUT:** Full MCP gateway, SaaS, prompt guardrails.
 
-Out of scope (do not send these as the PR’s main change):
-
-- full self-host firewall / stdio gateway product
-- SaaS / billing
-- prompt guardrails
-- K8s full mesh
-
-Also out, even if they look “related”:
-
-- A multi-server MCP front door or stdio multiplexer as the product
-- Remote SIEM / cloud log shipping
-- Fancy approval UI or a multi-tenant broker
-- Prompt filters, jailbreak scorers, or “agent safety” layers
-
-If you believe a larger design is needed, open an issue and wait. Do not grow the sidecar into a gateway in a drive-by PR.
+That pair is locked. Do not grow IN. Do not send OUT as the PR’s main change. If you believe a larger design is needed, open an issue and wait.
 
 ## Drive-by PRs we will close
 
@@ -45,7 +26,7 @@ Please do **not** open PRs that:
 - Add a full stdio / multi-server MCP proxy “while we’re here”
 - Add pricing pages, quote CTAs, or SaaS tenant plumbing
 - Add prompt-guardrail product framing or filter pipelines
-- Replace the README IN/OUT lists or drop the issue map
+- Replace the locked README **MVP IN / OUT** block or drop the issue map
 - Copy proprietary code (including from AGT). A short mapping *note* is fine; a port is not.
 
 Small docs fixes, tests for the core loop, and slices that match an existing issue are the right size.
@@ -78,9 +59,9 @@ Copy this into the PR body and check what applies:
 
 - [ ] PR title names the MVP slice (pin, diff, fail-closed, HITL, audit, sidecar)
 - [ ] Linked to an existing issue (`#3`–`#8` or epic `#1`)
-- [ ] Change stays inside README **IN**; nothing from **OUT** is introduced as a feature
+- [ ] Change stays inside locked README **IN**; nothing from locked **OUT** is introduced as a feature
 - [ ] Docs still say **Deadbugz guard** (thin sidecar/plugin). No gateway / firewall hero copy
-- [ ] README **MVP (IN)**, **OUT**, and **Tracking** issue map are still present if you touched `README.md`
+- [ ] README locked **MVP IN / OUT** block and **Tracking** issue map are still present if you touched `README.md`
 - [ ] HITL / audit work is limited to the re-approval path
 - [ ] Tests cover the new behavior (or the issue is docs-only)
 - [ ] No secrets, proprietary copies, or SaaS quote / pricing CTAs

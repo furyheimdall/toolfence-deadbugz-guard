@@ -82,21 +82,13 @@ docker compose up --build
 
 `FLIP_PATH` is a JSON state file `{ "mode": "benign\|poison\|add\|remove\|reorder\|deadbugz", "call_gate": 3 }`. Mode changes use **atomic `mv` only** (`WriteFlip`: temp write → rename). Example: [`testdata/flip.json`](testdata/flip.json).
 
-## MVP (IN)
+## MVP IN / OUT (locked)
 
-- hash-pin of tool definitions
-- `tools/list` diff against pin
-- fail-closed until re-approval
-- minimal HITL hook
-- minimal local audit (JSONL)
-- ship as sidecar/plugin (Obot / Docker / Lunar-style); nearest OSS reference: **AGT**
+**IN:** Deadbugz triangle (hash-pin → `tools/list` diff → fail-closed re-approval) + minimal HITL/audit as sidecar/plugin only.
 
-## OUT
+**OUT:** Full MCP gateway, SaaS, prompt guardrails.
 
-- full self-host firewall / stdio gateway product
-- SaaS / billing
-- prompt guardrails
-- K8s full mesh
+That pair is the contract. Do not grow IN. Do not treat anything in OUT as a feature. Tracking issues #1–#8 are slices of IN only.
 
 ## Not this
 
