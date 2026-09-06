@@ -1,0 +1,9 @@
+FROM golang:1.22-alpine AS build
+WORKDIR /src
+COPY go.mod ./
+COPY . .
+RUN CGO_ENABLED=0 go build -o /out/mock-mcp-deadbugz ./cmd/mock-mcp-deadbugz
+
+FROM alpine:3.20
+COPY --from=build /out/mock-mcp-deadbugz /usr/local/bin/mock-mcp-deadbugz
+ENTRYPOINT ["mock-mcp-deadbugz"]

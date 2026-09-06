@@ -8,6 +8,26 @@ It sits **beside** the agent’s existing MCP path. It does not replace that pat
 
 OSS pilot of the Deadbugz triangle: **pin → diff → fail-closed re-approval**, plus the minimum HITL and local audit hooks that path needs.
 
+## Language
+
+**Go** (module `github.com/furyheimdall/toolfence-deadbugz-guard`).
+
+Chosen so the sidecar ships as one static binary, speaks stdio with the standard library, and matches the merged `core` / `hitl` / `audit` packages (#12). Rust was considered and dropped to avoid a dual-language rebase.
+
+## Attach
+
+| Mode | Role |
+| --- | --- |
+| **1st / primary** | stdio wrap `deadbugz-guard -- <server>` |
+| **beside** | Docker / mcp-gateway (`docker-compose.yml`) |
+| **AGT** | juxtaposition reference only — do not copy names or code |
+
+This is **not** a full stdio / multi-server gateway product (epic OUT).
+
+## Mapping vs AGT
+
+AGT is the nearest public OSS *pattern*: a process that sits next to a tool server and observes the listing path. This pilot copies that **boundary** only (wrap vs target). It does not copy AGT source, names, or proprietary structure.
+
 ## Core loop
 
 1. **Hash-pin** approved MCP tool definitions.
@@ -18,14 +38,48 @@ HITL and audit exist only to support that re-approval path.
 
 ## Install
 
-Packaging is not on `main` yet. The sidecar/plugin adapter is tracked in [#7](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/7); repo scaffold (layout, MIT, local compose) is [#2](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/2).
-
-Until those land, clone the repo and follow the issue map below.
-
 ```bash
 git clone https://github.com/furyheimdall/toolfence-deadbugz-guard.git
 cd toolfence-deadbugz-guard
+
+go build -o bin/deadbugz-guard ./cmd/deadbugz-guard
+go build -o bin/mock-mcp-deadbugz ./cmd/mock-mcp-deadbugz
+
+# write a pin from the benign fixture (uses core.PinTools)
+./bin/deadbugz-guard --write-pin --pin testdata/pin.json --from-mode benign
+
+# primary attach: stdio wrap
+./bin/deadbugz-guard --pin testdata/pin.json --audit testdata/audit.jsonl \
+  --hitl http://127.0.0.1:8765 --call-gate 3 -- ./bin/mock-mcp-deadbugz
 ```
+
+Host plugin shape (Cursor / Claude Desktop style) is in [`examples/plugin.json`](examples/plugin.json).
+
+Flags / env: `--pin` / `PIN_PATH`, `--audit` / `AUDIT_PATH`, `--hitl` / `HITL_ENDPOINT`, `--call-gate` / `CALL_GATE` (Deadbugz path, default **3**).
+
+## Compose (beside)
+
+```bash
+go run ./cmd/deadbugz-guard --write-pin --pin testdata/pin.json --from-mode benign
+docker compose up --build
+```
+
+`deadbugz-guard` in compose still uses the primary wrap form: `deadbugz-guard -- mock-mcp-deadbugz`.
+
+## Smoke test
+
+```bash
+./scripts/smoke.sh
+```
+
+| Case | Result |
+| --- | --- |
+| unchanged `tools/list` | **allow** |
+| **reorder** | **allow** |
+| **poison** / mutated `tools/list` | **deny** (fail-closed) |
+| **`call_gate=3`** | Deadbugz path exercised; poison `tools/call` denied |
+
+`mock-mcp-deadbugz` flips listings via `FLIP_PATH` (`benign` / `poison` / `add` / `remove` / `reorder` / `deadbugz`).
 
 ## MVP (IN)
 
@@ -79,11 +133,22 @@ MIT
 
 ## Package layout (Go MVP)
 
-`core` (E1 gate types + thin `MemoryGate` adapter), `hitl` (#6), `audit` (#8). Sidecar is E3.
+`core` (merged #12 types + thin `MemoryGate` adapter), `hitl` (#6), `audit` (#8), `sidecar` (#7 wrap). This PR does **not** redefine `core` seats.
 
-Public gate vocabulary (issue #5, E1 accepted): `ToolDiffSummary`, `GateDecision`, `ReasonCode` (`OK`, `DIFF_NONEMPTY`, `APPROVAL_DENIED`, `APPROVAL_PENDING`, `PIN_MISSING`, `INTERNAL_ERROR`). `Approver.RequestApproval` takes a `ToolDiffSummary` and candidate pin. `ApplyApproval(pin_revision, approve|deny)` returns `GateDecision`. Timeout is deny.
+```
+core/     ToolDiffSummary, GateDecision, ReasonCode, Pin, Gate, MemoryGate, PinTools
+hitl/     Approver (#6)
+audit/    JSONL Auditor (#8)
+sidecar/  deadbugz-guard stdio wrap (uses core.Gate)
+cmd/deadbugz-guard
+cmd/mock-mcp-deadbugz
+cmd/hitl
+cmd/audit
+```
 
-Epic #1 compat matrix (A–J): this repo’s E2 slice owns **G** (re-approve → newHash + audit who/when/oldHash/newHash) and **H** (deny/timeout → keep old pin), plus audit coverage of pin / diff / block / re-approve. Later attach is stdio wrap `deadbugz-guard -- <server>` (E3); this PR does not implement that sidecar.
+Public gate vocabulary (issue #5 / #12): `ToolDiffSummary`, `GateDecision`, `ReasonCode` (`OK`, `DIFF_NONEMPTY`, `APPROVAL_DENIED`, `APPROVAL_PENDING`, `PIN_MISSING`, `INTERNAL_ERROR`). `Approver.RequestApproval` takes a `ToolDiffSummary` and candidate pin. `ApplyApproval(pin_revision, approve|deny)` returns `GateDecision`. Timeout is deny.
+
+Epic #1 compat matrix (A–J): E2 owns **G** / **H** plus audit. E3 attach is stdio wrap `deadbugz-guard -- <server>`.
 
 ## HITL stub (#6)
 
@@ -113,4 +178,3 @@ Redaction-safe allowlist (only these keys are written): `event`, `when`, `who`, 
 go test ./...
 go run ./cmd/audit -path ./audit.jsonl tail -n 20
 ```
-

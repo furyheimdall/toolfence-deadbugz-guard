@@ -1,0 +1,13 @@
+FROM golang:1.22-alpine AS build
+WORKDIR /src
+COPY go.mod ./
+COPY . .
+RUN CGO_ENABLED=0 go build -o /out/deadbugz-guard ./cmd/deadbugz-guard \
+ && CGO_ENABLED=0 go build -o /out/mock-mcp-deadbugz ./cmd/mock-mcp-deadbugz
+
+FROM alpine:3.20
+RUN adduser -D -H guard
+COPY --from=build /out/deadbugz-guard /usr/local/bin/deadbugz-guard
+COPY --from=build /out/mock-mcp-deadbugz /usr/local/bin/mock-mcp-deadbugz
+USER guard
+ENTRYPOINT ["deadbugz-guard"]

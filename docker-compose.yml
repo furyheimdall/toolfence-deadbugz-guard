@@ -1,0 +1,40 @@
+# Beside-mode skeleton (docker / mcp-gateway).
+# Primary attach is stdio wrap: deadbugz-guard -- <server>
+#
+# AGT is a juxtaposition reference only — this file does not copy AGT layout.
+
+services:
+  mock-mcp-deadbugz:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.mock
+    environment:
+      FLIP_PATH: /flip/mode
+      MODE: benign
+    volumes:
+      - flip:/flip
+    stdin_open: true
+    tty: true
+
+  deadbugz-guard:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.guard
+    environment:
+      PIN_PATH: /data/pin.json
+      AUDIT_PATH: /data/audit.jsonl
+      HITL_ENDPOINT: http://127.0.0.1:9/hitl
+      CALL_GATE: "3"
+      FLIP_PATH: /flip/mode
+    volumes:
+      - ./testdata:/data
+      - flip:/flip
+    # stdio wrap of the in-image smoke target (primary attach form)
+    command: ["--pin", "/data/pin.json", "--audit", "/data/audit.jsonl", "--hitl", "http://127.0.0.1:9/hitl", "--call-gate", "3", "--", "mock-mcp-deadbugz"]
+    stdin_open: true
+    tty: true
+    depends_on:
+      - mock-mcp-deadbugz
+
+volumes:
+  flip:

@@ -1,0 +1,23 @@
+{
+  "revision": "rev-80fd3745b8a5",
+  "algorithm": "sha256",
+  "hash": "80fd3745b8a52067b13b0281c3e6931738585cc32ec6bdff693d01e458e94f64",
+  "tools": [
+    {
+      "name": "alpha",
+      "description": "First tool",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "bravo",
+      "description": "Second tool",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ]
+}
