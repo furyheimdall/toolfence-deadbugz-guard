@@ -3,19 +3,18 @@
     "deadbugz-wrapped-example": {
       "command": "deadbugz-guard",
       "args": [
-        "--pin", "${PIN_PATH}",
-        "--audit", "${AUDIT_PATH}",
-        "--hitl", "${HITL_ENDPOINT}",
+        "--pin", "/var/lib/deadbugz/pin.json",
+        "--audit", "/var/lib/deadbugz/audit.jsonl",
+        "--hitl", "http://127.0.0.1:8765",
         "--call-gate", "3",
         "--",
-        "mock-mcp-deadbugz"
+        "your-mcp-server"
       ],
       "env": {
         "PIN_PATH": "/var/lib/deadbugz/pin.json",
         "AUDIT_PATH": "/var/lib/deadbugz/audit.jsonl",
-        "HITL_ENDPOINT": "http://127.0.0.1:8750/approve",
-        "CALL_GATE": "3",
-        "FLIP_PATH": "/tmp/deadbugz-flip.json"
+        "HITL_ENDPOINT": "http://127.0.0.1:8765",
+        "CALL_GATE": "3"
       }
     }
   }

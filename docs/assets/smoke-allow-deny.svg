@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Deadbugz guard  benign allow vs poison deny</title>
+  <desc id="desc">Pinned tools/list: benign listing matches the pin and is allowed; poison listing diffs the pin and fails closed until re-approval.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#161b22"/>
+    </linearGradient>
+    <filter id="glow-ok" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-no" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="960" height="540" fill="url(#bg)"/>
+  <text x="48" y="48" fill="#e6edf3" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700">Deadbugz guard</text>
+  <text x="48" y="74" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">pin ’ tools/list diff ’ fail-closed re-approval</text>
+  <text x="912" y="48" text-anchor="end" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12">OSS self-host sidecar</text>
+
+  <!-- shared pin -->
+  <rect x="300" y="96" width="360" height="56" rx="10" fill="#21262d" stroke="#30363d"/>
+  <text x="480" y="118" text-anchor="middle" fill="#8b949e" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">approved pin</text>
+  <text x="480" y="138" text-anchor="middle" fill="#c9d1d9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">alpha · bravo  (benign hash)</text>
+
+  <!-- ALLOW card -->
+  <g transform="translate(36,176)">
+    <rect width="432" height="328" rx="14" fill="#0d1117" stroke="#238636"/>
+    <text x="24" y="36" fill="#3fb950" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" font-weight="700">benign</text>
+    <text x="408" y="36" text-anchor="end" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">FLIP_PATH=benign</text>
+
+    <rect x="24" y="56" width="384" height="88" rx="8" fill="#161b22" stroke="#30363d"/>
+    <text x="40" y="80" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">tools/list</text>
+    <text x="40" y="104" fill="#e6edf3" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">alpha  First tool</text>
+    <text x="40" y="126" fill="#e6edf3" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">bravo  Second tool</text>
+
+    <text x="216" y="172" text-anchor="middle" fill="#8b949e" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13">live hash = pin</text>
+    <path d="M216 184 v28" stroke="#238636" stroke-width="2" fill="none"/>
+    <polygon points="210,212 222,212 216,222" fill="#238636"/>
+
+    <rect x="72" y="236" width="288" height="64" rx="10" fill="#122117" stroke="#3fb950" filter="url(#glow-ok)">
+      <animate attributeName="opacity" values="0.75;1;0.75" dur="2.4s" repeatCount="indefinite"/>
+    </rect>
+    <text x="216" y="264" text-anchor="middle" fill="#3fb950" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700">ALLOW</text>
+    <text x="216" y="286" text-anchor="middle" fill="#7ee787" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12">listing forwarded</text>
+  </g>
+
+  <!-- DENY card -->
+  <g transform="translate(492,176)">
+    <rect width="432" height="328" rx="14" fill="#0d1117" stroke="#da3633"/>
+    <text x="24" y="36" fill="#f85149" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" font-weight="700">poison</text>
+    <text x="408" y="36" text-anchor="end" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">FLIP_PATH=poison</text>
+
+    <rect x="24" y="56" width="384" height="88" rx="8" fill="#161b22" stroke="#30363d"/>
+    <text x="40" y="80" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">tools/list</text>
+    <text x="40" y="104" fill="#ffa198" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">alpha  POISONED first tool</text>
+    <text x="40" y="126" fill="#e6edf3" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">bravo  Second tool</text>
+
+    <text x="216" y="172" text-anchor="middle" fill="#8b949e" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13">live hash ` pin</text>
+    <path d="M216 184 v28" stroke="#da3633" stroke-width="2" fill="none"/>
+    <polygon points="210,212 222,212 216,222" fill="#da3633"/>
+
+    <rect x="72" y="236" width="288" height="64" rx="10" fill="#2d1113" stroke="#f85149" filter="url(#glow-no)">
+      <animate attributeName="opacity" values="0.75;1;0.75" dur="2.4s" repeatCount="indefinite"/>
+    </rect>
+    <text x="216" y="264" text-anchor="middle" fill="#f85149" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700">DENY</text>
+    <text x="216" y="286" text-anchor="middle" fill="#ff7b72" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12">fail-closed · re-approve to pin</text>
+  </g>
+</svg>

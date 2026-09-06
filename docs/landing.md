@@ -4,7 +4,7 @@
 
 Deadbugz guard is a thin MCP sidecar/plugin. It sits beside the agent host’s existing MCP path and watches one thing: whether the tool definitions the host is about to trust still match the pin you signed off on.
 
-[Star the repo](https://github.com/furyheimdall/toolfence-deadbugz-guard) · [Install](../README.md#install) · [Docs](../README.md#docs)
+[Star the repo](https://github.com/furyheimdall/toolfence-deadbugz-guard) · [Install](../README.md#install) · [Docs](../README.md#docs) · [Launch note](launch-note.md)
 
 This page is the OSS landing for the pilot. There is no product SKU, trial, or quote form.
 
@@ -39,6 +39,8 @@ Agents already speak MCP. Deadbugz guard does not ask you to rip that out.
 
 That is the whole MVP. Canonical scope is locked in the [README](../README.md#mvp-in--out-locked).
 
+Allow vs deny (smoke): [benign → allow / poison → deny](assets/smoke-allow-deny.svg). Replay: [demo](demo.md).
+
 ## MVP IN / OUT (locked)
 
 **IN:** Deadbugz triangle (hash-pin → `tools/list` diff → fail-closed re-approval) + minimal HITL/audit as sidecar/plugin only.
@@ -62,8 +64,8 @@ Read [SECURITY.md](../SECURITY.md) for trust boundaries, the control table, and 
 ## Get involved
 
 1. Star [furyheimdall/toolfence-deadbugz-guard](https://github.com/furyheimdall/toolfence-deadbugz-guard) if the loop is useful.
-2. [Install](../README.md#install) the shipped sidecar: clone, `go build`, wrap with `deadbugz-guard -- <server>`.
-3. Pick a [good first issue](../CONTRIBUTING.md#good-first-issues): hash-pin (#3), `tools/list` diff (#4), or local audit JSONL (#8).
+2. [Install](../README.md#install) the shipped sidecar: clone, `go build`, wrap with `deadbugz-guard -- <server>`. Host attach: [plugin guide](plugin-guide.md) + [`examples/plugin.json`](../examples/plugin.json).
+3. Pick a [good first issue](../CONTRIBUTING.md#good-first-issues): hash-pin ([#3](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/3)), `tools/list` diff ([#4](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/4)), or local audit JSONL ([#8](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/8)).
 
 ```bash
 git clone https://github.com/furyheimdall/toolfence-deadbugz-guard.git
