@@ -1,5 +1,7 @@
 # Deadbugz guard
 
+한국어: [README.ko.md](README.ko.md)
+
 Think of it as a lock on the tool menu: a guard that checks whether the MCP tools your assistant can see still match the list you already approved.
 
 When an AI assistant (for example Cursor) talks to a helper program such as a Filesystem MCP, that helper advertises a menu of tools. If the menu changes quietly — a new tool appears, a description is rewritten, a definition is swapped — the assistant can start doing things you never signed off on. Deadbugz guard sits between the assistant and that helper, remembers the approved menu, and stops the listing when the menu no longer matches. It does not replace the MCP path you already use; it sits beside it.
