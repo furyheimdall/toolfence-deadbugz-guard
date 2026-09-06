@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 )
 
@@ -27,12 +28,13 @@ const (
 	OutcomeDeny    ApprovalOutcome = "deny"
 )
 
-// ToolDef is the minimal live tools/list entry Evaluate accepts.
-// E1 owns canonical serialization; this shape is enough for HITL tests.
+// ToolDef is one MCP tools/list entry. Pin hash covers name + description +
+// inputSchema (+ annotations when present). Extra fields are ignored.
 type ToolDef struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description"`
 	InputSchema json.RawMessage `json:"inputSchema,omitempty"`
+	Annotations json.RawMessage `json:"annotations,omitempty"`
 }
 
 // Pin is the candidate / active hash-pin. Aggregate is the SHA-256 hex
@@ -41,6 +43,7 @@ type Pin struct {
 	Version    string            `json:"version"`
 	Aggregate  string            `json:"aggregate"`
 	ToolHashes map[string]string `json:"tool_hashes,omitempty"`
+	Tools      []ToolDef         `json:"tools,omitempty"`
 	CreatedAt  time.Time         `json:"created_at"`
 }
 
@@ -95,11 +98,35 @@ func Deny(code ReasonCode, diff *ToolDiffSummary) GateDecision {
 // plus the candidate pin (newHash lives on candidate.Aggregate).
 //
 // On approve: return candidate.Version and nil.
-// On deny: return "" and a non-nil error (ErrDenied).
-// On timeout: return "" and a non-nil error (ErrTimeout); the hook treats
-// timeout as deny (Chief H) and must not advance the pin.
+// On deny: return "" and a non-nil error.
+// On timeout: return "" and a non-nil error (context deadline or
+// ErrApprovalTimeout). MapApproverResult treats timeout as deny (Chief H).
 type Approver interface {
 	RequestApproval(ctx context.Context, diff ToolDiffSummary, candidate Pin) (approvedVersion string, err error)
+}
+
+// ErrApprovalTimeout is the Approver sentinel for a timed-out HITL wait.
+// ApplyApproval / MapApproverResult treat it as deny (Chief H).
+var ErrApprovalTimeout = errors.New("core: approval timeout")
+
+// MapApproverResult is apply_approval's Approver wiring: timeout, deny, or
+// version mismatch → OutcomeDeny (old pin kept). Matching version → approve.
+func MapApproverResult(approvedVersion string, err error, candidateVersion string) ApprovalOutcome {
+	if err != nil || approvedVersion == "" || approvedVersion != candidateVersion {
+		return OutcomeDeny
+	}
+	return OutcomeApprove
+}
+
+// ApproverDecisionLabel is the audit "decision" field (approve|deny|timeout).
+func ApproverDecisionLabel(err error) string {
+	if err == nil {
+		return "approve"
+	}
+	if errors.Is(err, ErrApprovalTimeout) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return "timeout"
+	}
+	return "deny"
 }
 
 // Auditor is the #8 injection interface. Implementations must persist only

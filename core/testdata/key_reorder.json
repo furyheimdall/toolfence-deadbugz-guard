@@ -1,0 +1,28 @@
+{
+  "tools": [
+    {
+      "inputSchema": {
+        "required": ["url"],
+        "type": "object",
+        "properties": {
+          "max_length": {"minimum": 1, "type": "integer"},
+          "url": {"type": "string"}
+        }
+      },
+      "annotations": {"readOnlyHint": true},
+      "description": "Fetch a URL and return its contents.",
+      "name": "fetch"
+    },
+    {
+      "inputSchema": {
+        "properties": {
+          "path": {"type": "string"}
+        },
+        "type": "object",
+        "required": ["path"]
+      },
+      "name": "read_file",
+      "description": "Read a local file path."
+    }
+  ]
+}

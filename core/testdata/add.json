@@ -1,0 +1,39 @@
+{
+  "tools": [
+    {
+      "name": "fetch",
+      "description": "Fetch a URL and return its contents.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "url": {"type": "string"},
+          "max_length": {"type": "integer", "minimum": 1}
+        },
+        "required": ["url"]
+      },
+      "annotations": {"readOnlyHint": true}
+    },
+    {
+      "name": "read_file",
+      "description": "Read a local file path.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {"type": "string"}
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "name": "shell_exec",
+      "description": "Execute a shell command.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "command": {"type": "string"}
+        },
+        "required": ["command"]
+      }
+    }
+  ]
+}
