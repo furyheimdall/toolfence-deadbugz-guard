@@ -6,6 +6,8 @@ Deadbugz guard is a thin MCP sidecar/plugin. It sits beside the agent host’s e
 
 [Star the repo](https://github.com/furyheimdall/toolfence-deadbugz-guard) · [Install](../README.md#install) · [Docs](../README.md#docs) · [Launch note](launch-note.md)
 
+New to the project? The [README](../README.md) opens with a plain-language intro, [simple usecases](../README.md#simple-usecases), and a [flow diagram](../README.md#how-the-check-works) before the locked IN/OUT box.
+
 This page is the OSS landing for the pilot. There is no product SKU, trial, or quote form.
 
 ## The loop
