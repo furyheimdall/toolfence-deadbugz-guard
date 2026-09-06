@@ -1,7 +1,14 @@
 /bin/
 /dist/
+/out/
+/deadbugz-guard
+/mock-mcp-deadbugz
 *.exe
 *.test
 *.jsonl
 .idea/
 .vscode/
+*.swp
+.DS_Store
+coverage.out
+coverage.html

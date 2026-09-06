@@ -1,0 +1,9 @@
+{
+  "version": "smoke-1",
+  "aggregate": "6e1500cd3e9f31ce2bdecf2630138b02e4b6ad5759645147a6468e2efa456a93",
+  "tool_hashes": {
+    "alpha": "bef9e17a1e96fe32fddd75b08b7f20f5188742bc5d39c29006cf20129f3db815",
+    "bravo": "dbad20d9565e91493096bde36d7e2115486850dd03a470f1cb7856c19407271d"
+  },
+  "created_at": "2026-09-06T06:36:11.090680815Z"
+}

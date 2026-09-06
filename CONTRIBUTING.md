@@ -66,7 +66,7 @@ Comment on the issue before starting so work does not overlap.
 
 ## Development
 
-Language and package layout are decided in [#2](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/2) (Rust or Go preferred for the sidecar). Until that lands, match whatever `core`, `hitl`, `audit`, and `sidecar` layout is on the branch you target.
+Language is **Go**. Match the merged `core` / `hitl` / `audit` contract from [#12](https://github.com/furyheimdall/toolfence-deadbugz-guard/pull/12). Do not redefine those seats. The sidecar wrap lives in `sidecar/` and `cmd/deadbugz-guard` ([#7](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/7)).
 
 - Prefer tests that lock the loop: same input → same hash; no-change pass; mutation fail-closed; approve binds one pin revision.
 - Do not add network services that the MVP issues did not ask for.
