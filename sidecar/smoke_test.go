@@ -13,20 +13,19 @@ import (
 	"github.com/furyheimdall/toolfence-deadbugz-guard/sidecar/mcpio"
 )
 
-func TestSmokeUnchangedAllow(t *testing.T) {
-	cli, flip, stop := startStack(t, mockmcp.ModeBenign)
+func TestSmokeBenignAllow(t *testing.T) {
+	cli, _, stop := startStack(t, mockmcp.ModeBenign)
 	defer stop()
-	_ = flip
 	res := mustRPC(t, cli, 1, "tools/list", map[string]any{})
 	if res.Error != nil {
-		t.Fatalf("unchanged tools/list should allow: %s", string(res.Error))
+		t.Fatalf("benign (pinned) tools/list should allow: %s", string(res.Error))
 	}
 }
 
 func TestSmokeReorderAllow(t *testing.T) {
 	cli, flip, stop := startStack(t, mockmcp.ModeBenign)
 	defer stop()
-	atomicWrite(t, flip, mockmcp.ModeReorder)
+	atomicFlip(t, flip, mockmcp.ModeReorder)
 	res := mustRPC(t, cli, 1, "tools/list", map[string]any{})
 	if res.Error != nil {
 		t.Fatalf("reorder → allow, got deny: %s", string(res.Error))
@@ -45,18 +44,37 @@ func TestSmokeReorderAllow(t *testing.T) {
 func TestSmokePoisonDeny(t *testing.T) {
 	cli, flip, stop := startStack(t, mockmcp.ModeBenign)
 	defer stop()
-	atomicWrite(t, flip, mockmcp.ModePoison)
-	res := mustRPC(t, cli, 1, "tools/list", map[string]any{})
-	if res.Error == nil {
-		t.Fatal("poison → deny, got allow")
-	}
-	data := rpcErrorData(t, res.Error)
-	if data["reason_code"] != "DIFF_NONEMPTY" {
-		t.Fatalf("reason_code=%v data=%v", data["reason_code"], data)
+	atomicFlip(t, flip, mockmcp.ModePoison)
+	assertListDenied(t, cli, 1, "poison")
+}
+
+func TestSmokeAddFailClosed(t *testing.T) {
+	cli, flip, stop := startStack(t, mockmcp.ModeBenign)
+	defer stop()
+	atomicFlip(t, flip, mockmcp.ModeAdd)
+	data := assertListDenied(t, cli, 1, "add")
+	if diff, _ := data["diff"].(map[string]any); diff != nil {
+		added, _ := diff["added"].([]any)
+		if len(added) == 0 {
+			t.Fatalf("add should list added tools: %v", data)
+		}
 	}
 }
 
-func TestSmokeCallGate3(t *testing.T) {
+func TestSmokeRemoveFailClosed(t *testing.T) {
+	cli, flip, stop := startStack(t, mockmcp.ModeBenign)
+	defer stop()
+	atomicFlip(t, flip, mockmcp.ModeRemove)
+	data := assertListDenied(t, cli, 1, "remove")
+	if diff, _ := data["diff"].(map[string]any); diff != nil {
+		removed, _ := diff["removed"].([]any)
+		if len(removed) == 0 {
+			t.Fatalf("remove should list removed tools: %v", data)
+		}
+	}
+}
+
+func TestSmokeDeadbugzCallGate3(t *testing.T) {
 	cli, flip, stop := startStack(t, mockmcp.ModeBenign)
 	defer stop()
 
@@ -65,10 +83,10 @@ func TestSmokeCallGate3(t *testing.T) {
 		t.Fatalf("benign tools/call should allow: %s", string(ok.Error))
 	}
 
-	atomicWrite(t, flip, mockmcp.ModePoison)
+	atomicFlip(t, flip, mockmcp.ModeDeadbugz)
 	denied := mustRPC(t, cli, 2, "tools/call", map[string]any{"name": "alpha", "arguments": map[string]any{}})
 	if denied.Error == nil {
-		t.Fatal("call_gate=3 poison should deny tools/call")
+		t.Fatal("deadbugz + call_gate=3 should block tools/call after gate")
 	}
 	data := rpcErrorData(t, denied.Error)
 	gate, _ := data["call_gate"].(float64)
@@ -88,17 +106,17 @@ type rpcClient struct {
 func startStack(t *testing.T, initial string) (*rpcClient, string, func()) {
 	t.Helper()
 	dir := t.TempDir()
-	flip := filepath.Join(dir, "mode")
-	atomicWrite(t, flip, initial)
+	flip := filepath.Join(dir, "flip.json")
+	atomicFlip(t, flip, initial)
 	pinPath := filepath.Join(dir, "pin.json")
 	if _, err := WritePinFile(pinPath, "smoke-1", mockmcp.Tools(mockmcp.ModeBenign)); err != nil {
 		t.Fatal(err)
 	}
 
-	mockIn, wrapServerIn := io.Pipe()      // mock reads mockIn; wrap writes wrapServerIn
-	wrapServerOut, mockOut := io.Pipe()    // wrap reads wrapServerOut; mock writes mockOut
-	guardStdin, cliToGuard := io.Pipe()    // wrap reads guardStdin; client writes cliToGuard
-	cliFromGuard, guardStdout := io.Pipe() // client reads cliFromGuard; wrap writes guardStdout
+	mockIn, wrapServerIn := io.Pipe()
+	wrapServerOut, mockOut := io.Pipe()
+	guardStdin, cliToGuard := io.Pipe()
+	cliFromGuard, guardStdout := io.Pipe()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -141,6 +159,26 @@ func startStack(t *testing.T, initial string) (*rpcClient, string, func()) {
 		case <-time.After(2 * time.Second):
 		}
 	}
+}
+
+func atomicFlip(t *testing.T, path, mode string) {
+	t.Helper()
+	if err := mockmcp.WriteFlip(path, mockmcp.FlipState{Mode: mode, CallGate: 3}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func assertListDenied(t *testing.T, cli *rpcClient, id int, label string) map[string]any {
+	t.Helper()
+	res := mustRPC(t, cli, id, "tools/list", map[string]any{})
+	if res.Error == nil {
+		t.Fatalf("%s → fail-closed, got allow", label)
+	}
+	data := rpcErrorData(t, res.Error)
+	if data["reason_code"] != "DIFF_NONEMPTY" {
+		t.Fatalf("%s reason_code=%v data=%v", label, data["reason_code"], data)
+	}
+	return data
 }
 
 func mustRPC(t *testing.T, cli *rpcClient, id int, method string, params any) mcpio.Message {
@@ -194,15 +232,4 @@ func rpcErrorData(t *testing.T, raw json.RawMessage) map[string]any {
 		t.Fatal(err)
 	}
 	return obj.Data
-}
-
-func atomicWrite(t *testing.T, path, body string) {
-	t.Helper()
-	tmp := path + ".tmp"
-	if err := writeFile(tmp, body+"\n"); err != nil {
-		t.Fatal(err)
-	}
-	if err := renameFile(tmp, path); err != nil {
-		t.Fatal(err)
-	}
 }

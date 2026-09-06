@@ -1,7 +1,8 @@
 // Command mock-mcp-deadbugz is the smoke-target MCP server.
 //
-// Mode is read from FLIP_PATH (atomic file) or MODE:
-// benign | poison | add | remove | reorder | deadbugz
+// FLIP_PATH is a JSON state file {mode, call_gate=3}.
+// Modes: benign | poison | add | remove | reorder | deadbugz.
+// Flips must be published with temp write + rename (mockmcp.WriteFlip).
 package main
 
 import (

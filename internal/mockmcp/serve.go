@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"io"
-	"os"
-	"strings"
 	"sync"
 
 	"github.com/furyheimdall/toolfence-deadbugz-guard/sidecar/mcpio"
@@ -38,7 +36,7 @@ func Serve(in io.Reader, out io.Writer, flipPath string) error {
 		if msg.Method == "" || len(msg.ID) == 0 {
 			continue
 		}
-		mode := currentMode(flipPath)
+		st := ReadFlip(flipPath)
 		switch msg.Method {
 		case "initialize":
 			_ = write(mcpio.Message{
@@ -54,15 +52,17 @@ func Serve(in io.Reader, out io.Writer, flipPath string) error {
 			_ = write(mcpio.Message{
 				JSONRPC: "2.0",
 				ID:      msg.ID,
-				Result:  mustJSON(map[string]any{"tools": Tools(mode)}),
+				Result:  mustJSON(map[string]any{"tools": Tools(st.Mode)}),
 			})
 		case "tools/call":
 			_ = write(mcpio.Message{
 				JSONRPC: "2.0",
 				ID:      msg.ID,
 				Result: mustJSON(map[string]any{
-					"content": []map[string]any{{"type": "text", "text": "ok:" + mode}},
-					"isError": false,
+					"content":   []map[string]any{{"type": "text", "text": "ok:" + st.Mode}},
+					"isError":   false,
+					"call_gate": st.CallGate,
+					"mode":      st.Mode,
 				}),
 			})
 		default:
@@ -73,15 +73,6 @@ func Serve(in io.Reader, out io.Writer, flipPath string) error {
 			})
 		}
 	}
-}
-
-func currentMode(flipPath string) string {
-	if flipPath != "" {
-		if b, err := os.ReadFile(flipPath); err == nil {
-			return NormalizeMode(strings.TrimSpace(string(b)))
-		}
-	}
-	return NormalizeMode(os.Getenv("MODE"))
 }
 
 func mustJSON(v any) json.RawMessage {

@@ -74,12 +74,13 @@ docker compose up --build
 
 | Case | Result |
 | --- | --- |
-| unchanged `tools/list` | **allow** |
+| **benign** (pinned) | **allow** |
 | **reorder** | **allow** |
-| **poison** / mutated `tools/list` | **deny** (fail-closed) |
-| **`call_gate=3`** | Deadbugz path exercised; poison `tools/call` denied |
+| **poison** | **deny** (fail-closed) |
+| **add** / **remove** | **fail-closed** |
+| **deadbugz** + **`call_gate=3`** | block `tools/call` after gate |
 
-`mock-mcp-deadbugz` flips listings via `FLIP_PATH` (`benign` / `poison` / `add` / `remove` / `reorder` / `deadbugz`).
+`FLIP_PATH` is a JSON state file `{ "mode": "benign\|poison\|add\|remove\|reorder\|deadbugz", "call_gate": 3 }`. Mode changes use **atomic `mv` only** (`WriteFlip`: temp write → rename). Example: [`testdata/flip.json`](testdata/flip.json).
 
 ## MVP (IN)
 

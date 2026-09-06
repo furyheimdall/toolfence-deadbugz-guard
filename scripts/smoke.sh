@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Smoke: unchanged allow, reorder → allow, poison → deny, call_gate=3.
+# FLIP_PATH smoke (atomic mv): benign allow, reorder allow, poison/add/remove deny,
+# deadbugz + call_gate=3 block after gate.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 echo "== deadbugz-guard smoke =="
-go test ./sidecar -count=1 -timeout 60s -run 'TestSmoke|TestHash|TestDiff'
-echo "PASS  unchanged tools/list → allow"
+go test ./internal/mockmcp ./sidecar -count=1 -timeout 60s -run 'TestSmoke|TestHash|TestDiff|TestWriteFlip|TestParseFlip'
+echo "PASS  benign (pinned) → allow"
 echo "PASS  reorder → allow"
 echo "PASS  poison → deny"
-echo "PASS  call_gate=3 Deadbugz path exercised"
+echo "PASS  add / remove → fail-closed"
+echo "PASS  deadbugz + call_gate=3 → block after gate"
 echo "ok"

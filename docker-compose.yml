@@ -9,10 +9,10 @@ services:
       context: .
       dockerfile: deploy/docker/Dockerfile.mock
     environment:
-      FLIP_PATH: /flip/mode
-      MODE: benign
+      FLIP_PATH: /data/flip.json
+      CALL_GATE: "3"
     volumes:
-      - flip:/flip
+      - ./testdata:/data
     stdin_open: true
     tty: true
 
@@ -25,16 +25,12 @@ services:
       AUDIT_PATH: /data/audit.jsonl
       HITL_ENDPOINT: http://127.0.0.1:9/hitl
       CALL_GATE: "3"
-      FLIP_PATH: /flip/mode
+      FLIP_PATH: /data/flip.json
     volumes:
       - ./testdata:/data
-      - flip:/flip
     # stdio wrap of the in-image smoke target (primary attach form)
     command: ["--pin", "/data/pin.json", "--audit", "/data/audit.jsonl", "--hitl", "http://127.0.0.1:9/hitl", "--call-gate", "3", "--", "mock-mcp-deadbugz"]
     stdin_open: true
     tty: true
     depends_on:
       - mock-mcp-deadbugz
-
-volumes:
-  flip:
