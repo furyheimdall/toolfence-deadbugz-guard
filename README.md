@@ -1,10 +1,38 @@
 # Deadbugz guard
 
-Thin MCP sidecar/plugin that hash-pins approved tool definitions, diffs every `tools/list`, and fails closed until a human re-approves.
+Think of it as a lock on the tool menu: a guard that checks whether the MCP tools your assistant can see still match the list you already approved.
 
-It sits **beside** the agent’s existing MCP path. It does not replace that path.
+When an AI assistant (for example Cursor) talks to a helper program such as a Filesystem MCP, that helper advertises a menu of tools. If the menu changes quietly — a new tool appears, a description is rewritten, a definition is swapped — the assistant can start doing things you never signed off on. Deadbugz guard sits between the assistant and that helper, remembers the approved menu, and stops the listing when the menu no longer matches. It does not replace the MCP path you already use; it sits beside it.
 
 [Star](https://github.com/furyheimdall/toolfence-deadbugz-guard) · [Install](#install) · [Docs](docs/landing.md)
+
+The locked contract is still **pin → `tools/list` diff → fail-closed re-approval**. Jargon and the MVP IN/OUT box are below; start here if you are new.
+
+## Simple usecases
+
+| Situation | What Deadbugz guard does |
+| --- | --- |
+| **Cursor + a Filesystem MCP** | Wrap the server you already run: `deadbugz-guard -- <server>`. The host keeps its MCP path; the wrap stops tool definitions from changing silently. |
+| **Poisoned `tools/list`** | A rewritten, added, or removed tool is a mismatch. The guard **denies** and **fails closed** until a human re-approves a new pin. |
+| **Reorder-only `tools/list`** | The same approved tools come back in a different order. The guard **allows**. Order is not a change. |
+
+Those three match the smoke table: benign / reorder → allow; poison / add / remove → deny.
+
+## How the check works
+
+```mermaid
+flowchart TD
+  Agent[Agent / host] -->|"asks for the tool menu"| Guard[Deadbugz guard]
+  Guard -->|"forwards tools/list"| Server[MCP server]
+  Server -->|"live tool menu"| Guard
+  Guard --> Match{"Does the menu match the approved pin?"}
+  Match -->|"yes — same tools, including reorder-only"| Allow[Allow — listing reaches the agent]
+  Match -->|"no — poison, add, remove, or rewrite"| Deny[Deny — fail closed until a human re-approves]
+```
+
+Same path as a picture: ![Agent to Deadbugz guard to MCP server — allow vs deny](docs/assets/flow-allow-deny.svg)
+
+Smoke pair (benign allow vs poison deny): [docs/assets/smoke-allow-deny.svg](docs/assets/smoke-allow-deny.svg) · replay: [docs/demo.md](docs/demo.md).
 
 OSS pilot of the Deadbugz triangle: **pin → diff → fail-closed re-approval**, plus the minimum HITL and local audit hooks that path needs.
 
@@ -118,6 +146,7 @@ If a change needs a full gateway, remote SIEM, or prompt-layer product, it is ou
 - [Landing](docs/landing.md) — positioning for the OSS pilot
 - [Launch note](docs/launch-note.md) — one-line position, Install/landing links, GitHub About paste
 - [Plugin guide](docs/plugin-guide.md) — Cursor / Claude Desktop wrap via `examples/plugin.json`
+- [Flow diagram](#how-the-check-works) — Agent → Deadbugz guard → MCP server, allow vs deny ([SVG](docs/assets/flow-allow-deny.svg))
 - [Demo](docs/demo.md) — benign → allow vs poison → deny, plus smoke replay
 - [Security](SECURITY.md) — threat model for the MVP loop
 - [Contributing](CONTRIBUTING.md) — scope rules and PR checklist
