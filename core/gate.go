@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 )
 
 // ErrSilentRepin is returned when a caller tries to overwrite an existing
@@ -19,24 +20,37 @@ type pendingApproval struct {
 // file pin store. Public names stay Evaluate / ApplyApproval / CurrentPin /
 // PendingCandidate so HITL (#6) and audit (#8) keep compiling.
 type MemoryGate struct {
-	mu      sync.Mutex
-	pin     *Pin
-	pending *pendingApproval
-	seq     int
-	store   *FileStore
+	mu       sync.Mutex
+	pin      *Pin
+	pending  *pendingApproval
+	seq      int
+	store    *FileStore
+	approver Approver
+	auditor  Auditor
+	actor    string
+	now      func() time.Time
 }
 
 // NewMemoryGate returns an empty fail-closed gate (PIN_MISSING until an
 // initial pin is installed).
 func NewMemoryGate() *MemoryGate {
-	return &MemoryGate{}
+	return &MemoryGate{now: func() time.Time { return time.Now().UTC() }}
 }
 
 // NewFileGate is the production pin store. A missing or tampered file is
 // fail-closed; Evaluate never creates the file.
 func NewFileGate(path string) *MemoryGate {
-	return &MemoryGate{store: &FileStore{Path: path}}
+	return &MemoryGate{store: &FileStore{Path: path}, now: func() time.Time { return time.Now().UTC() }}
 }
+
+// SetApprover attaches the #6 HITL hook used by ResolveApproval.
+func (g *MemoryGate) SetApprover(a Approver) { g.approver = a }
+
+// SetAuditor attaches the #8 hook. Approve/deny emit who/when/oldHash/newHash.
+func (g *MemoryGate) SetAuditor(a Auditor) { g.auditor = a }
+
+// SetActor is the default "who" written on approved/denied events.
+func (g *MemoryGate) SetActor(who string) { g.actor = who }
 
 // InstallInitialPin sets the first pin only. Later hash advances must go
 // through ApplyApproval(approve). Evaluate never calls this.
@@ -126,11 +140,35 @@ func (g *MemoryGate) AuthorizeCall(ctx context.Context, toolName string, live []
 	return g.Evaluate(ctx, live)
 }
 
-// ApplyApproval consumes approve|deny for pin_revision.
+// ApplyApproval is apply_approval(pin_revision, approve|deny).
 //
-// Approve (Chief G): pin becomes the pending candidate (newHash).
-// Deny (Chief H): old pin is kept; hash does not advance.
+// G approve: pin becomes the pending candidate (newHash only).
+// H deny: old pin is kept; hash does not advance. Timeout is mapped to
+// deny by MapApproverResult before this call.
 func (g *MemoryGate) ApplyApproval(pinRevision string, outcome ApprovalOutcome) GateDecision {
+	return g.applyApproval(pinRevision, outcome, "deny")
+}
+
+// ResolveApproval runs Approver.RequestApproval then apply_approval.
+// Timeout / deny / version mismatch → APPROVAL_DENIED, old pin kept (H).
+func (g *MemoryGate) ResolveApproval(ctx context.Context) GateDecision {
+	g.mu.Lock()
+	if g.pending == nil {
+		g.mu.Unlock()
+		return Deny(ReasonInternalError, nil)
+	}
+	diff := *copyDiff(g.pending.Diff)
+	cand := *clonePin(g.pending.Candidate)
+	approver := g.approver
+	g.mu.Unlock()
+	if approver == nil {
+		return Deny(ReasonApprovalPending, &diff)
+	}
+	ver, err := approver.RequestApproval(ctx, diff, cand)
+	return g.applyApproval(cand.Version, MapApproverResult(ver, err, cand.Version), ApproverDecisionLabel(err))
+}
+
+func (g *MemoryGate) applyApproval(pinRevision string, outcome ApprovalOutcome, decision string) GateDecision {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if g.pending == nil {
@@ -143,10 +181,25 @@ func (g *MemoryGate) ApplyApproval(pinRevision string, outcome ApprovalOutcome) 
 		return Deny(ReasonApprovalDenied, nil)
 	}
 	if pinRevision != g.pending.Candidate.Version {
-		// Fail-closed: do not advance; leave pending so all calls stay denied.
+		// Fail-closed: do not advance; leave pending so all calls stay denied (F).
 		return Deny(ReasonInternalError, copyDiff(g.pending.Diff))
 	}
 	diff := copyDiff(g.pending.Diff)
+	oldHash := ""
+	oldRev := ""
+	if g.pin != nil {
+		oldHash = g.pin.Aggregate
+		oldRev = g.pin.Version
+	}
+	who := g.actor
+	if who == "" {
+		who = "local"
+	}
+	when := g.now()
+	if g.now == nil {
+		when = time.Now().UTC()
+	}
+
 	switch outcome {
 	case OutcomeApprove:
 		g.pin = clonePin(g.pending.Candidate)
@@ -156,13 +209,45 @@ func (g *MemoryGate) ApplyApproval(pinRevision string, outcome ApprovalOutcome) 
 				return Deny(ReasonInternalError, diff)
 			}
 		}
+		g.emit("approved", map[string]any{
+			"who":          who,
+			"when":         when.Format(time.RFC3339Nano),
+			"oldHash":      oldHash,
+			"newHash":      g.pin.Aggregate,
+			"pin_revision": g.pin.Version,
+			"pin_hash":     oldHash,
+			"live_hash":    g.pin.Aggregate,
+			"reason_code":  string(ReasonOK),
+			"decision":     "approve",
+		})
 		return Allow(g.pin.Version)
 	case OutcomeDeny:
 		g.pending = nil
+		if decision == "" || decision == "approve" {
+			decision = "deny"
+		}
+		g.emit("denied", map[string]any{
+			"who":          who,
+			"when":         when.Format(time.RFC3339Nano),
+			"oldHash":      oldHash,
+			"newHash":      oldHash, // Chief H: hash does not advance
+			"pin_revision": oldRev,
+			"pin_hash":     oldHash,
+			"live_hash":    diff.LiveHash,
+			"reason_code":  string(ReasonApprovalDenied),
+			"decision":     decision,
+		})
 		return Deny(ReasonApprovalDenied, diff)
 	default:
 		return Deny(ReasonInternalError, diff)
 	}
+}
+
+func (g *MemoryGate) emit(event string, fields map[string]any) {
+	if g.auditor == nil {
+		return
+	}
+	g.auditor.Record(event, fields)
 }
 
 func (g *MemoryGate) refreshFromStore() error {

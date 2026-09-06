@@ -15,7 +15,10 @@
 //     PIN_MISSING | INTERNAL_ERROR
 //   - Evaluate(live) / ApplyApproval(pin_revision, approve|deny)
 //   - Approver.RequestApproval(ctx, diff, candidate Pin)
-//   - Auditor.Record(event, fields)
+//   - Auditor.Record(event, fields) — approved/denied include who/when/oldHash/newHash
+//
+// G: approve advances pin to newHash only; emit approved with hash transition.
+// H: deny or Approver timeout → APPROVAL_DENIED; old pin kept; calls stay denied.
 //
 // Pin = SHA-256 of tools sorted by name, then canonical JSON of name +
 // description + inputSchema (+ annotations). Evaluate never writes a pin.
