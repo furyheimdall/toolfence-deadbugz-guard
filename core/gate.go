@@ -15,14 +15,15 @@ type pendingApproval struct {
 	Diff      *ToolDiffSummary
 }
 
-// MemoryGate is a thin in-process Gate for HITL/audit tests. E1 replaces
-// the pin store and production Evaluate; the public method names stay
-// Evaluate and ApplyApproval.
+// MemoryGate is the production fail-closed gate (#3/#4/#5) with an optional
+// file pin store. Public names stay Evaluate / ApplyApproval / CurrentPin /
+// PendingCandidate so HITL (#6) and audit (#8) keep compiling.
 type MemoryGate struct {
 	mu      sync.Mutex
 	pin     *Pin
 	pending *pendingApproval
 	seq     int
+	store   *FileStore
 }
 
 // NewMemoryGate returns an empty fail-closed gate (PIN_MISSING until an
@@ -31,16 +32,33 @@ func NewMemoryGate() *MemoryGate {
 	return &MemoryGate{}
 }
 
+// NewFileGate is the production pin store. A missing or tampered file is
+// fail-closed; Evaluate never creates the file.
+func NewFileGate(path string) *MemoryGate {
+	return &MemoryGate{store: &FileStore{Path: path}}
+}
+
 // InstallInitialPin sets the first pin only. Later hash advances must go
-// through ApplyApproval(approve).
+// through ApplyApproval(approve). Evaluate never calls this.
 func (g *MemoryGate) InstallInitialPin(p Pin) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if g.pin != nil {
 		return ErrSilentRepin
 	}
+	if g.store != nil {
+		if existing, err := g.store.Load(); err == nil && existing != nil {
+			return ErrSilentRepin
+		} else if err != nil && !errors.Is(err, errPinMissing) && !errors.Is(err, errPinTampered) {
+			return err
+		}
+		if err := g.store.Save(p); err != nil {
+			return err
+		}
+	}
 	g.pin = clonePin(p)
 	g.seq = 1
+	g.pending = nil
 	return nil
 }
 
@@ -48,6 +66,9 @@ func (g *MemoryGate) InstallInitialPin(p Pin) error {
 func (g *MemoryGate) CurrentPin() *Pin {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	if err := g.refreshFromStore(); err != nil {
+		return nil
+	}
 	if g.pin == nil {
 		return nil
 	}
@@ -65,13 +86,17 @@ func (g *MemoryGate) PendingCandidate() *Pin {
 }
 
 // Evaluate is fail-closed:
-//   - no pin → PIN_MISSING
+//   - no pin / tampered pin → PIN_MISSING (no silent re-pin)
 //   - pending re-approval → APPROVAL_PENDING (all tool calls denied; Chief F)
 //   - aggregate match → Allow{pin_revision}
-//   - otherwise → DIFF_NONEMPTY and arm pending candidate
+//   - add / remove / description or schema change → DIFF_NONEMPTY
 func (g *MemoryGate) Evaluate(_ context.Context, live []ToolDef) GateDecision {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	if err := g.refreshFromStore(); err != nil {
+		g.pin = nil
+		return Deny(ReasonPinMissing, nil)
+	}
 	if g.pin == nil {
 		return Deny(ReasonPinMissing, nil)
 	}
@@ -80,7 +105,11 @@ func (g *MemoryGate) Evaluate(_ context.Context, live []ToolDef) GateDecision {
 	}
 
 	g.seq++
-	livePin := PinTools(live, nextPinVersion(g.pin.Version, g.seq))
+	livePin, err := HashCatalog(live, nextPinVersion(g.pin.Version, g.seq))
+	if err != nil {
+		g.seq--
+		return Deny(ReasonInternalError, nil)
+	}
 	if livePin.Aggregate == g.pin.Aggregate {
 		g.seq-- // no candidate consumed
 		return Allow(g.pin.Version)
@@ -88,6 +117,13 @@ func (g *MemoryGate) Evaluate(_ context.Context, live []ToolDef) GateDecision {
 	diff := summarize(*g.pin, livePin)
 	g.pending = &pendingApproval{Candidate: livePin, Diff: &diff}
 	return Deny(ReasonDiffNonempty, copyDiff(&diff))
+}
+
+// AuthorizeCall re-evaluates the current tools/list before every call
+// (Chief E / J). Pending, mismatch, poison, or missing pin deny the call.
+func (g *MemoryGate) AuthorizeCall(ctx context.Context, toolName string, live []ToolDef) GateDecision {
+	_ = toolName
+	return g.Evaluate(ctx, live)
 }
 
 // ApplyApproval consumes approve|deny for pin_revision.
@@ -98,7 +134,7 @@ func (g *MemoryGate) ApplyApproval(pinRevision string, outcome ApprovalOutcome) 
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if g.pending == nil {
-		if g.pin == nil {
+		if err := g.refreshFromStore(); err != nil || g.pin == nil {
 			return Deny(ReasonPinMissing, nil)
 		}
 		if outcome == OutcomeApprove {
@@ -115,6 +151,11 @@ func (g *MemoryGate) ApplyApproval(pinRevision string, outcome ApprovalOutcome) 
 	case OutcomeApprove:
 		g.pin = clonePin(g.pending.Candidate)
 		g.pending = nil
+		if g.store != nil {
+			if err := g.store.Save(*g.pin); err != nil {
+				return Deny(ReasonInternalError, diff)
+			}
+		}
 		return Allow(g.pin.Version)
 	case OutcomeDeny:
 		g.pending = nil
@@ -122,6 +163,18 @@ func (g *MemoryGate) ApplyApproval(pinRevision string, outcome ApprovalOutcome) 
 	default:
 		return Deny(ReasonInternalError, diff)
 	}
+}
+
+func (g *MemoryGate) refreshFromStore() error {
+	if g.store == nil {
+		return nil
+	}
+	p, err := g.store.Load()
+	if err != nil {
+		return err
+	}
+	g.pin = p
+	return nil
 }
 
 func copyDiff(d *ToolDiffSummary) *ToolDiffSummary {

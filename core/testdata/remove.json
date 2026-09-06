@@ -1,0 +1,17 @@
+{
+  "tools": [
+    {
+      "name": "fetch",
+      "description": "Fetch a URL and return its contents.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "url": {"type": "string"},
+          "max_length": {"type": "integer", "minimum": 1}
+        },
+        "required": ["url"]
+      },
+      "annotations": {"readOnlyHint": true}
+    }
+  ]
+}

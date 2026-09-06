@@ -27,12 +27,13 @@ const (
 	OutcomeDeny    ApprovalOutcome = "deny"
 )
 
-// ToolDef is the minimal live tools/list entry Evaluate accepts.
-// E1 owns canonical serialization; this shape is enough for HITL tests.
+// ToolDef is one MCP tools/list entry. Pin hash covers name + description +
+// inputSchema (+ annotations when present). Extra fields are ignored.
 type ToolDef struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description"`
 	InputSchema json.RawMessage `json:"inputSchema,omitempty"`
+	Annotations json.RawMessage `json:"annotations,omitempty"`
 }
 
 // Pin is the candidate / active hash-pin. Aggregate is the SHA-256 hex
@@ -41,6 +42,7 @@ type Pin struct {
 	Version    string            `json:"version"`
 	Aggregate  string            `json:"aggregate"`
 	ToolHashes map[string]string `json:"tool_hashes,omitempty"`
+	Tools      []ToolDef         `json:"tools,omitempty"`
 	CreatedAt  time.Time         `json:"created_at"`
 }
 
