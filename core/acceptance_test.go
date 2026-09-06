@@ -198,6 +198,18 @@ func TestEvaluateDoesNotInstallPin(t *testing.T) {
 	}
 }
 
+func TestDiffReorderOnlyEmpty(t *testing.T) {
+	pinned := PinTools(loadFixture(t, "benign"), "pin-1")
+	live := PinTools(loadFixture(t, "reorder"), "live")
+	d := Diff(pinned, live)
+	if !d.Empty() {
+		t.Fatalf("reorder-only must not diff: %+v", d)
+	}
+	if d.LiveHash != d.PinHash {
+		t.Fatalf("aggregates: live=%s pin=%s", d.LiveHash, d.PinHash)
+	}
+}
+
 func TestHashStableAndCanonical(t *testing.T) {
 	a := PinTools(loadFixture(t, "benign"), "1")
 	b := PinTools(loadFixture(t, "benign"), "1")

@@ -104,6 +104,12 @@ func clonePin(p Pin) *Pin {
 	return &out
 }
 
+// Diff compares two hashed catalogs (pinned vs live). Reorder-only input
+// that shares the same Aggregate produces an empty summary (Chief D).
+func Diff(pinned, live Pin) ToolDiffSummary {
+	return summarize(pinned, live)
+}
+
 func summarize(oldPin, livePin Pin) ToolDiffSummary {
 	added, removed, changed := []string{}, []string{}, []string{}
 	oldKeys := map[string]struct{}{}
