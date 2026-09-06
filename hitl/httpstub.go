@@ -97,9 +97,51 @@ func (s *Server) Handler() http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok\n"))
 	})
+	mux.HandleFunc("POST /v1/approvals", s.handleCreate)
 	mux.HandleFunc("GET /v1/approvals/pending", s.handlePending)
 	mux.HandleFunc("POST /v1/approvals/{id}/decide", s.handleDecide)
 	return mux
+}
+
+// handleCreate long-polls RequestApproval so the CLI stub can demo without a sidecar.
+func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Diff       core.ToolDiffSummary `json:"diff"`
+		Candidate  core.Pin             `json:"candidate"`
+		TimeoutSec int                  `json:"timeout_sec"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	ctx := r.Context()
+	if req.TimeoutSec > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(req.TimeoutSec)*time.Second)
+		defer cancel()
+	}
+	ver, err := s.RequestApproval(ctx, req.Diff, req.Candidate)
+	w.Header().Set("Content-Type", "application/json")
+	if err != nil {
+		code := "APPROVAL_DENIED"
+		if errors.Is(err, ErrTimeout) {
+			code = "APPROVAL_DENIED" // timeout == deny (Chief H)
+			w.WriteHeader(http.StatusGatewayTimeout)
+		} else {
+			w.WriteHeader(http.StatusConflict)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"decision":    "deny",
+			"reason_code": code,
+			"error":       err.Error(),
+		})
+		return
+	}
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"decision":         "approve",
+		"reason_code":      string(core.ReasonOK),
+		"approved_version": ver,
+	})
 }
 
 func (s *Server) handlePending(w http.ResponseWriter, _ *http.Request) {

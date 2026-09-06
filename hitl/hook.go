@@ -83,7 +83,7 @@ func (h *Hook) RequestAndApply(ctx context.Context, diff core.ToolDiffSummary, c
 		oldRev = p.Version
 	}
 
-	h.record("diff_detected", diffFields(diff, oldHash, candidate.Aggregate, oldRev, ""))
+	h.record("diff_detected", diffFields(h.now(), diff, oldHash, candidate.Aggregate, oldRev, ""))
 	h.recordBlockedDecision(diff, oldHash, oldRev)
 
 	if h.Approver == nil {
@@ -109,19 +109,19 @@ func (h *Hook) RequestAndApply(ctx context.Context, diff core.ToolDiffSummary, c
 		newHash = p.Aggregate
 	}
 	h.record("approved", map[string]any{
-		"when":              h.now().Format(time.RFC3339Nano),
-		"who":               h.actor(),
-		"oldHash":           oldHash,
-		"newHash":           newHash,
-		"pin_revision":      d.PinRevision,
-		"pin_hash":          oldHash,
-		"live_hash":         candidate.Aggregate,
-		"added":             append([]string(nil), diff.Added...),
-		"removed":           append([]string(nil), diff.Removed...),
-		"changed":           append([]string(nil), diff.Changed...),
-		"reason_code":       string(core.ReasonOK),
-		"decision":          "approve",
-		"approved_version":  ver,
+		"when":             h.now().Format(time.RFC3339Nano),
+		"who":              h.actor(),
+		"oldHash":          oldHash,
+		"newHash":          newHash,
+		"pin_revision":     d.PinRevision,
+		"pin_hash":         oldHash,
+		"live_hash":        candidate.Aggregate,
+		"added":            append([]string(nil), diff.Added...),
+		"removed":          append([]string(nil), diff.Removed...),
+		"changed":          append([]string(nil), diff.Changed...),
+		"reason_code":      string(core.ReasonOK),
+		"decision":         "approve",
+		"approved_version": ver,
 	})
 	return d
 }
@@ -173,9 +173,9 @@ func (h *Hook) recordDenied(diff core.ToolDiffSummary, oldHash, rev, decision st
 	})
 }
 
-func diffFields(diff core.ToolDiffSummary, oldHash, liveHash, rev, who string) map[string]any {
+func diffFields(when time.Time, diff core.ToolDiffSummary, oldHash, liveHash, rev, who string) map[string]any {
 	return map[string]any{
-		"when":         time.Now().UTC().Format(time.RFC3339Nano),
+		"when":         when.Format(time.RFC3339Nano),
 		"who":          who,
 		"oldHash":      oldHash,
 		"newHash":      oldHash,

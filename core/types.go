@@ -11,12 +11,12 @@ import (
 type ReasonCode string
 
 const (
-	ReasonOK               ReasonCode = "OK"
-	ReasonDiffNonempty     ReasonCode = "DIFF_NONEMPTY"
-	ReasonApprovalDenied   ReasonCode = "APPROVAL_DENIED"
-	ReasonApprovalPending  ReasonCode = "APPROVAL_PENDING"
-	ReasonPinMissing       ReasonCode = "PIN_MISSING"
-	ReasonInternalError    ReasonCode = "INTERNAL_ERROR"
+	ReasonOK              ReasonCode = "OK"
+	ReasonDiffNonempty    ReasonCode = "DIFF_NONEMPTY"
+	ReasonApprovalDenied  ReasonCode = "APPROVAL_DENIED"
+	ReasonApprovalPending ReasonCode = "APPROVAL_PENDING"
+	ReasonPinMissing      ReasonCode = "PIN_MISSING"
+	ReasonInternalError   ReasonCode = "INTERNAL_ERROR"
 )
 
 // ApprovalOutcome is the apply_approval decision consumed by the gate.
@@ -47,12 +47,12 @@ type Pin struct {
 // ToolDiffSummary is the HITL request payload and Deny.diff (issue #5).
 // Tool names only — never raw schemas or call arguments.
 type ToolDiffSummary struct {
-	Added        []string `json:"added"`
-	Removed      []string `json:"removed"`
-	Changed      []string `json:"changed"`
-	PinRevision  string   `json:"pin_revision"`
-	LiveHash     string   `json:"live_hash"`
-	PinHash      string   `json:"pin_hash"`
+	Added       []string `json:"added"`
+	Removed     []string `json:"removed"`
+	Changed     []string `json:"changed"`
+	PinRevision string   `json:"pin_revision"`
+	LiveHash    string   `json:"live_hash"`
+	PinHash     string   `json:"pin_hash"`
 }
 
 // Empty reports whether the tools/list diff has no added/removed/changed names.
