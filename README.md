@@ -35,6 +35,8 @@ MIT
 
 Public gate vocabulary (issue #5, E1 accepted): `ToolDiffSummary`, `GateDecision`, `ReasonCode` (`OK`, `DIFF_NONEMPTY`, `APPROVAL_DENIED`, `APPROVAL_PENDING`, `PIN_MISSING`, `INTERNAL_ERROR`). `Approver.RequestApproval` takes a `ToolDiffSummary` and candidate pin. `ApplyApproval(pin_revision, approve|deny)` returns `GateDecision`. Timeout is deny.
 
+Epic #1 compat matrix (A–J): this repo’s E2 slice owns **G** (re-approve → newHash + audit who/when/oldHash/newHash) and **H** (deny/timeout → keep old pin), plus audit coverage of pin / diff / block / re-approve. Later attach is stdio wrap `deadbugz-guard -- <server>` (E3); this PR does not implement that sidecar.
+
 ## HITL stub (#6)
 
 Local only — callback, CLI, or tiny HTTP stub. No SaaS.

@@ -22,6 +22,7 @@ func primed(t *testing.T) (*core.MemoryGate, core.Pin, []core.ToolDef) {
 	return g, old, live
 }
 
+// TestGApproveAdvancesHashAndAuditsWhoWhenOldNew is Epic #1 / Chief G.
 func TestGApproveAdvancesHashAndAuditsWhoWhenOldNew(t *testing.T) {
 	g, old, live := primed(t)
 	path := t.TempDir() + "/audit.jsonl"
@@ -83,6 +84,7 @@ func TestGApproveAdvancesHashAndAuditsWhoWhenOldNew(t *testing.T) {
 	}
 }
 
+// TestHDenyKeepsOldPin is Epic #1 / Chief H (deny).
 func TestHDenyKeepsOldPin(t *testing.T) {
 	g, old, live := primed(t)
 	path := t.TempDir() + "/audit.jsonl"
@@ -122,6 +124,7 @@ func TestHDenyKeepsOldPin(t *testing.T) {
 	}
 }
 
+// TestHTimeoutKeepsOldPin is Epic #1 / Chief H (timeout == deny, old pin kept).
 func TestHTimeoutKeepsOldPin(t *testing.T) {
 	g, old, live := primed(t)
 	path := t.TempDir() + "/audit.jsonl"
@@ -232,6 +235,7 @@ func TestApplyApprovalMismatchDoesNotAdvance(t *testing.T) {
 	}
 }
 
+// TestAuditEventsPinDiffBlockReapprove is #8: pin / diff / block / re-approve.
 func TestAuditEventsPinDiffBlockReapprove(t *testing.T) {
 	g, old, live := primed(t)
 	path := t.TempDir() + "/audit.jsonl"

@@ -1,3 +1,6 @@
+// Package hitl is issue #6: local Approver + apply_approval wiring.
+// Epic #1 tests owned here: G (re-approve) and H (deny/timeout).
+// stdio wrap `deadbugz-guard -- <server>` is E3, not this package.
 package hitl
 
 import (
