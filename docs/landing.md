@@ -62,7 +62,16 @@ Read [SECURITY.md](../SECURITY.md) for trust boundaries, the control table, and 
 ## Get involved
 
 1. Star [furyheimdall/toolfence-deadbugz-guard](https://github.com/furyheimdall/toolfence-deadbugz-guard) if the loop is useful.
-2. Install when [#2](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/2) and [#7](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/7) land — clone today and follow the issue map.
+2. [Install](../README.md#install) the shipped sidecar: clone, `go build`, wrap with `deadbugz-guard -- <server>`.
 3. Pick a [good first issue](../CONTRIBUTING.md#good-first-issues): hash-pin (#3), `tools/list` diff (#4), or local audit JSONL (#8).
 
-MIT licensed. Implementation is in progress; the contract above is what we will ship first.
+```bash
+git clone https://github.com/furyheimdall/toolfence-deadbugz-guard.git
+cd toolfence-deadbugz-guard
+go build -o bin/deadbugz-guard ./cmd/deadbugz-guard
+./bin/deadbugz-guard --pin testdata/pin.json -- <your-mcp-server>
+```
+
+Flags, compose, and smoke stay in the [README Install](../README.md#install) section.
+
+MIT licensed. The MVP contract above is what we ship.
