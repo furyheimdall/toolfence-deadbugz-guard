@@ -37,29 +37,19 @@ Agents already speak MCP. Deadbugz guard does not ask you to rip that out.
 - The guard plugs in on the `tools/list` path (Obot / Docker / Lunar-style plugin; nearest OSS reference: AGT).
 - Unchanged listings pass. Mutated listings fail closed until you re-pin.
 
-That is the whole MVP. See the [README](../README.md) for the engineering IN/OUT list and the issue map (#1–#8).
+That is the whole MVP. Canonical scope is locked in the [README](../README.md#mvp-in--out-locked).
+
+## MVP IN / OUT (locked)
+
+**IN:** Deadbugz triangle (hash-pin → `tools/list` diff → fail-closed re-approval) + minimal HITL/audit as sidecar/plugin only.
+
+**OUT:** Full MCP gateway, SaaS, prompt guardrails.
 
 ## Not this
 
-Deadbugz guard is **not**:
+Deadbugz guard is the locked **IN** loop as a sidecar/plugin. It is **not** the locked **OUT** list: a full MCP gateway, a SaaS product, or prompt guardrails.
 
-- A full stdio or multi-server MCP gateway you put in front of every agent
-- A control tower, policy mesh, or “approve every call” broker
-- A prompt-guardrail or jailbreak filter
-- A SaaS console, billed plan, or “request a quote” product
-
-Those are out of scope for this repository. Contributions that turn the sidecar into any of the above will be closed. Details: [CONTRIBUTING](../CONTRIBUTING.md).
-
-## Scope, in one table
-
-| In (MVP) | Out |
-| --- | --- |
-| Hash-pin of tool definitions | Full self-host firewall / stdio gateway product |
-| `tools/list` diff against pin | SaaS / billing |
-| Fail-closed until re-approval | Prompt guardrails |
-| Minimal HITL hook | K8s full mesh |
-| Minimal local audit (JSONL) | Remote SIEM / cloud shipping |
-| Sidecar / plugin packaging | Multi-tenant approval broker |
+Contributions that turn the sidecar into OUT will be closed. Details: [CONTRIBUTING](../CONTRIBUTING.md).
 
 ## Security
 
