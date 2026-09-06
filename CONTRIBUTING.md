@@ -1,6 +1,6 @@
 # Contributing to Deadbugz guard
 
-Thanks for helping. This repo is an OSS **pilot** of a thin MCP sidecar/plugin. The product is the Deadbugz triangle only:
+Thanks for helping. This repo is an OSS **pilot** of a thin MCP sidecar/plugin. The product is **Deadbugz guard** — the triangle loop only:
 
 1. Hash-pin approved tool definitions
 2. Diff every `tools/list`
