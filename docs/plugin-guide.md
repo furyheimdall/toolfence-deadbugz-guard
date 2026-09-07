@@ -12,6 +12,8 @@ This is a sidecar on the existing MCP path. It is not a multi-server gateway.
 
 Wrap the Filesystem and Fetch servers Cursor already launches. Same pin → `tools/list` diff → fail-closed re-approval loop; the host keeps its MCP path.
 
+`deadbugz-guard` is the process entry: `--pin`, then optional `--audit` / `--hitl` / `--call-gate`, then `--`, then the upstream tokens.
+
 ### 1. Build, install, write a pin
 
 Follow [README Install](../README.md#install): clone, `go build` `deadbugz-guard`, write a pin, put the binary on `PATH` (or use an absolute path in `command` below).
@@ -21,15 +23,27 @@ go build -o bin/deadbugz-guard ./cmd/deadbugz-guard
 ./bin/deadbugz-guard --write-pin --pin testdata/pin.json --from-mode benign
 ```
 
-That `--write-pin` command is the smoke fixture (`mock-mcp-deadbugz` / `--from-mode benign`). It is not a Filesystem or Fetch pin. For a wrapped host server, point `--pin` at a **writable local file per server**. A `tools/list` mismatch fails closed until HITL re-approval.
+That `--write-pin` command is the smoke fixture (`mock-mcp-deadbugz` / `--from-mode benign`). It is not a Filesystem or Fetch pin.
+
+Suggested pin files (one per server): `~/.deadbugz/pins/filesystem.json` and `~/.deadbugz/pins/fetch.json`. Cursor does **not** expand `~` or `${VAR}` in `args` — write the absolute path (`/home/you/.deadbugz/pins/filesystem.json` on Linux, `/Users/you/.deadbugz/pins/filesystem.json` on macOS). A `tools/list` mismatch fails closed until HITL re-approval.
 
 ### 2. Wrap Filesystem + Fetch in `mcp.json`
 
-Merge into the project file `.cursor/mcp.json` or the user file `~/.cursor/mcp.json`. Set `command` to `deadbugz-guard`. Put the real server argv after `--`. Host apps do **not** expand `${VAR}` — use real absolute paths.
+Same `mcpServers` object in either file:
+
+| Scope | File |
+| --- | --- |
+| Project | `.cursor/mcp.json` |
+| Global | `~/.cursor/mcp.json` |
+
+Set `command` to `deadbugz-guard`. After `--`, the upstream launchers are:
+
+- **Filesystem:** `npx -y @modelcontextprotocol/server-filesystem <allowed-dir>`
+- **Fetch:** `uvx mcp-server-fetch` (not the archived `@modelcontextprotocol/server-fetch` package)
 
 Copy-paste template: [`examples/cursor-mcp.filesystem-fetch.json`](../examples/cursor-mcp.filesystem-fetch.json). Shape matches [`examples/plugin.json`](../examples/plugin.json).
 
-**Filesystem** — typical Cursor launch is `npx -y @modelcontextprotocol/server-filesystem` plus one or more allowed directories:
+**Filesystem**
 
 ```json
 {
@@ -37,22 +51,22 @@ Copy-paste template: [`examples/cursor-mcp.filesystem-fetch.json`](../examples/c
     "filesystem": {
       "command": "deadbugz-guard",
       "args": [
-        "--pin", "/absolute/path/to/deadbugz/pin-filesystem.json",
-        "--audit", "/absolute/path/to/deadbugz/audit.jsonl",
+        "--pin", "/home/you/.deadbugz/pins/filesystem.json",
+        "--audit", "/home/you/.deadbugz/audit.jsonl",
         "--hitl", "http://127.0.0.1:8765",
         "--call-gate", "3",
         "--",
         "npx",
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "/absolute/path/to/allowed/directory"
+        "/home/you/allowed-dir"
       ]
     }
   }
 }
 ```
 
-**Fetch** — many Cursor configs still use `npx -y @modelcontextprotocol/server-fetch`. The official reference server is often launched as `uvx mcp-server-fetch`. Wrap whichever argv you already run:
+**Fetch**
 
 ```json
 {
@@ -60,25 +74,20 @@ Copy-paste template: [`examples/cursor-mcp.filesystem-fetch.json`](../examples/c
     "fetch": {
       "command": "deadbugz-guard",
       "args": [
-        "--pin", "/absolute/path/to/deadbugz/pin-fetch.json",
-        "--audit", "/absolute/path/to/deadbugz/audit.jsonl",
+        "--pin", "/home/you/.deadbugz/pins/fetch.json",
+        "--audit", "/home/you/.deadbugz/audit.jsonl",
         "--hitl", "http://127.0.0.1:8765",
         "--call-gate", "3",
         "--",
-        "npx",
-        "-y",
-        "@modelcontextprotocol/server-fetch"
+        "uvx",
+        "mcp-server-fetch"
       ]
     }
   }
 }
 ```
 
-Alternate Fetch argv after `--`: `uvx`, `mcp-server-fetch`.
-
-Use a **separate pin file per server**. Filesystem and Fetch advertise different `tools/list` menus.
-
-If `deadbugz-guard` is not on `PATH`, set `command` to the absolute path of `bin/deadbugz-guard`. Optional `env` keys (`PIN_PATH`, `AUDIT_PATH`, `HITL_ENDPOINT`, `CALL_GATE`) match [`examples/plugin.json`](../examples/plugin.json).
+`--audit`, `--hitl`, and `--call-gate` are optional. If `deadbugz-guard` is not on `PATH`, set `command` to the absolute path of `bin/deadbugz-guard`. Optional `env` keys (`PIN_PATH`, `AUDIT_PATH`, `HITL_ENDPOINT`, `CALL_GATE`) match [`examples/plugin.json`](../examples/plugin.json).
 
 ### 3. Reload
 
@@ -86,13 +95,13 @@ Restart Cursor (or reload MCP) so the wrap is the command the host launches.
 
 ## FAQ
 
-### Marketplace one-click ≠ guard wrap
+### Marketplace / one-click Add ≠ guard wrap
 
-Installing an MCP from the Cursor Marketplace does **not** put Deadbugz guard in front of that server. Marketplace install writes the vendor `command` / `args` (usually `npx …` or `uvx …`). You must set `command` to `deadbugz-guard` and put the real server argv after `--`. One-click enable is not a wrap.
+Marketplace / one-click **Add to Cursor** installs a **bare** server entry. It does **not** insert Deadbugz guard. After Marketplace install, change `command` to `deadbugz-guard` and put the original launcher after `--`.
 
-### Cursor Auto-review ≠ Deadbugz pin approval
+### Cursor Auto-review ≠ Deadbugz pin / re-approval
 
-Cursor **Auto-review** is Cursor’s own action safety check. Deadbugz pin / re-approval is a **separate durable pin** on `tools/list`. Approving an Auto-review card does **not** re-pin Deadbugz. A mutated listing still fails closed until HITL re-approval on the guard’s pin.
+Cursor **Auto-review** (and chat tool toggles) is not Deadbugz **pin / re-approval**. Approving an Auto-review card does not write or refresh a Deadbugz pin. Pin drift needs the Deadbugz HITL / re-approve path.
 
 ## 1. Install the binary
 

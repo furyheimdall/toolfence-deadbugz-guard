@@ -3,19 +3,19 @@
     "filesystem": {
       "command": "deadbugz-guard",
       "args": [
-        "--pin", "/absolute/path/to/deadbugz/pin-filesystem.json",
-        "--audit", "/absolute/path/to/deadbugz/audit.jsonl",
+        "--pin", "/home/you/.deadbugz/pins/filesystem.json",
+        "--audit", "/home/you/.deadbugz/audit.jsonl",
         "--hitl", "http://127.0.0.1:8765",
         "--call-gate", "3",
         "--",
         "npx",
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "/absolute/path/to/allowed/directory"
+        "/home/you/allowed-dir"
       ],
       "env": {
-        "PIN_PATH": "/absolute/path/to/deadbugz/pin-filesystem.json",
-        "AUDIT_PATH": "/absolute/path/to/deadbugz/audit.jsonl",
+        "PIN_PATH": "/home/you/.deadbugz/pins/filesystem.json",
+        "AUDIT_PATH": "/home/you/.deadbugz/audit.jsonl",
         "HITL_ENDPOINT": "http://127.0.0.1:8765",
         "CALL_GATE": "3"
       }
@@ -23,18 +23,17 @@
     "fetch": {
       "command": "deadbugz-guard",
       "args": [
-        "--pin", "/absolute/path/to/deadbugz/pin-fetch.json",
-        "--audit", "/absolute/path/to/deadbugz/audit.jsonl",
+        "--pin", "/home/you/.deadbugz/pins/fetch.json",
+        "--audit", "/home/you/.deadbugz/audit.jsonl",
         "--hitl", "http://127.0.0.1:8765",
         "--call-gate", "3",
         "--",
-        "npx",
-        "-y",
-        "@modelcontextprotocol/server-fetch"
+        "uvx",
+        "mcp-server-fetch"
       ],
       "env": {
-        "PIN_PATH": "/absolute/path/to/deadbugz/pin-fetch.json",
-        "AUDIT_PATH": "/absolute/path/to/deadbugz/audit.jsonl",
+        "PIN_PATH": "/home/you/.deadbugz/pins/fetch.json",
+        "AUDIT_PATH": "/home/you/.deadbugz/audit.jsonl",
         "HITL_ENDPOINT": "http://127.0.0.1:8765",
         "CALL_GATE": "3"
       }
