@@ -13,6 +13,10 @@
 // (flag / env / approve-file / HTTP GET / `deadbugz-guard approve`).
 // Missing or tampered pins stay fail-closed; there is no silent re-pin.
 //
+// Issue #21 / #23: argv after `--` plus inventory env (GitHub toolsets /
+// --tools / GITHUB_TOOLSETS) bind config_fingerprint. Intentional
+// inventory change is config_or_inventory_changed, not tools_list_drift.
+//
 // It uses the merged #12 core.Gate / MemoryGate / PinTools types.
 // Do not redefine those seats here.
 //

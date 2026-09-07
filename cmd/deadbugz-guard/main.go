@@ -105,12 +105,16 @@ func runApprove(args []string) int {
 
 	argv := fs.Args()
 	if len(argv) > 0 {
-		written, werr := sidecar.ApproveFromServer(ctx, cfg.PinPath, sidecar.ExecStart(argv))
+		ident := core.NewConfigIdentity(argv, os.Environ())
+		if cfg.ServerName != "" {
+			ident.ServerName = cfg.ServerName
+		}
+		written, werr := sidecar.ApproveFromServerWithConfig(ctx, cfg.PinPath, sidecar.ExecStart(argv), ident)
 		if werr != nil {
 			fatal(werr.Error())
 			return 1
 		}
-		fmt.Fprintf(os.Stderr, "wrote pin %s mode=0600 hash=%s\n", cfg.PinPath, written.Aggregate)
+		fmt.Fprintf(os.Stderr, "wrote pin %s mode=0600 hash=%s fingerprint=%s\n", cfg.PinPath, written.Aggregate, written.ConfigFingerprint)
 		return 0
 	}
 	written, err := sidecar.ApproveFromPending(cfg.PinPath, *fromPending)
@@ -130,12 +134,16 @@ func writePinMode(cfg sidecar.Config, fromMode string, argv []string) int {
 	if len(argv) > 0 {
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 		defer cancel()
-		p, err := sidecar.ApproveFromServer(ctx, cfg.PinPath, sidecar.ExecStart(argv))
+		ident := core.NewConfigIdentity(argv, os.Environ())
+		if cfg.ServerName != "" {
+			ident.ServerName = cfg.ServerName
+		}
+		p, err := sidecar.ApproveFromServerWithConfig(ctx, cfg.PinPath, sidecar.ExecStart(argv), ident)
 		if err != nil {
 			fatal(err.Error())
 			return 1
 		}
-		fmt.Fprintf(os.Stderr, "wrote pin %s mode=0600 hash=%s\n", cfg.PinPath, p.Aggregate)
+		fmt.Fprintf(os.Stderr, "wrote pin %s mode=0600 hash=%s fingerprint=%s\n", cfg.PinPath, p.Aggregate, p.ConfigFingerprint)
 		return 0
 	}
 	ident := core.ConfigIdentity{}

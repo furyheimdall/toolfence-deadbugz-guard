@@ -15,6 +15,11 @@ type Config struct {
 	// ServerArgv is argv after `--` (the wrapped server). Used for
 	// config_fingerprint (#21). Empty keeps the legacy tools-only gate.
 	ServerArgv []string
+	// ServerEnv, when non-nil, is the environ hashed into
+	// config_fingerprint instead of os.Environ(). Production wrap leaves
+	// this nil. Tests use it so GITHUB_TOOLSETS / --tools inventory does
+	// not leak from the runner. Tokens are still dropped by SubsetEnv.
+	ServerEnv []string
 	// ServerName selects ~/.deadbugz/pins/<name>.json when PinPath is empty.
 	ServerName string
 	// Approve, when true, installs the first pin from a live tools/list if the

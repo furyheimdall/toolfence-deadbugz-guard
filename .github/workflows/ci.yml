@@ -21,9 +21,7 @@ jobs:
         run: ./scripts/smoke.sh
 
   # E3 (#23): Filesystem + Fetch wrap + non-TTY pin. Headless, no TTY.
-  # E1 seam (#23): add a separate job after this one for GitHub official MCP
-  # toolsets / intentional inventory change → config_or_inventory_changed
-  # (#21). Do not fold toolsets into verify-filesystem-fetch.sh.
+  # Do not fold toolsets into verify-filesystem-fetch.sh.
   verify-filesystem-fetch:
     runs-on: ubuntu-latest
     steps:
@@ -37,3 +35,15 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - name: verify Filesystem + Fetch wrap (non-TTY pin)
         run: ./scripts/verify-filesystem-fetch.sh --ci
+
+  # E1 (#23): GitHub official MCP toolsets / config_or_inventory_changed.
+  # Sibling of verify-filesystem-fetch. No GitHub credentials (mock fixture).
+  verify-github-toolsets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: github toolsets inventory-change
+        run: ./scripts/verify-github-toolsets.sh

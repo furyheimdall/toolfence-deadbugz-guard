@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# CI / local fixture standing in for official github-mcp-server
+# (https://github.com/github/github-mcp-server).
+#
+# Accepts the same inventory flags the official binary takes
+# (--toolsets / --tools). Deadbugz hashes those tokens via argv after `--`;
+# this process only needs to speak MCP stdio. Listing comes from
+# mock-mcp-deadbugz so no GITHUB_PERSONAL_ACCESS_TOKEN is required.
+#
+# Usage (from repo root, after `go build -o bin/mock-mcp-deadbugz ./cmd/mock-mcp-deadbugz`):
+#   deadbugz-guard approve --name github --pin … -- \
+#     scripts/fixtures/github-mcp-server --toolsets repos
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+MOCK="${DEADBUGZ_MOCK_MCP:-}"
+if [[ -z "$MOCK" ]]; then
+  if [[ -x "$ROOT/bin/mock-mcp-deadbugz" ]]; then
+    MOCK="$ROOT/bin/mock-mcp-deadbugz"
+  elif command -v mock-mcp-deadbugz >/dev/null 2>&1; then
+    MOCK="$(command -v mock-mcp-deadbugz)"
+  else
+    echo "github-mcp-server fixture: mock-mcp-deadbugz not found (build ./cmd/mock-mcp-deadbugz or set DEADBUGZ_MOCK_MCP)" >&2
+    exit 127
+  fi
+fi
+# Official flags are inventory for the wrap fingerprint, not for this mock.
+exec "$MOCK"

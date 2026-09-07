@@ -141,7 +141,7 @@ func ApplyNonTTYApprove(cfg Config, reason core.ReasonCode, live []core.ToolDef)
 	if !ok {
 		return core.Pin{}, false, nil
 	}
-	p, err := WritePinFile(cfg.PinPath, "pin-1", live)
+	p, err := WritePinFileWithConfig(cfg.PinPath, "pin-1", live, processIdentity(cfg))
 	if err != nil {
 		return core.Pin{}, false, err
 	}
@@ -162,10 +162,21 @@ type PendingSnapshot struct {
 // WritePendingSnapshot stores the live tools so approve can run without a TTY
 // and without talking to the IDE-spawned wrap.
 func WritePendingSnapshot(pinPath string, reason core.ReasonCode, live []core.ToolDef, diff *core.ToolDiffSummary) error {
+	return WritePendingSnapshotWithConfig(pinPath, reason, live, diff, core.ConfigIdentity{})
+}
+
+// WritePendingSnapshotWithConfig stores the live catalog plus #21 identity
+// so a later approve keeps config_fingerprint / pin_id (GitHub toolsets).
+func WritePendingSnapshotWithConfig(pinPath string, reason core.ReasonCode, live []core.ToolDef, diff *core.ToolDiffSummary, cfg core.ConfigIdentity) error {
 	if pinPath == "" {
 		return nil
 	}
-	p := core.PinTools(live, "pending-1")
+	var p core.Pin
+	if cfg.ServerName != "" || len(cfg.Argv) > 0 || len(cfg.Env) > 0 {
+		p = core.PinToolsWithConfig(live, "pending-1", cfg)
+	} else {
+		p = core.PinTools(live, "pending-1")
+	}
 	snap := PendingSnapshot{Reason: string(reason), Pin: p, Diff: diff}
 	return writeJSONFile(PendingPath(pinPath), snap)
 }
@@ -186,7 +197,7 @@ func ApproveFromPending(pinPath, pendingPath string) (core.Pin, error) {
 	if len(snap.Pin.Tools) == 0 {
 		return core.Pin{}, fmt.Errorf("pending snapshot has no tools")
 	}
-	p, err := WritePinFile(pinPath, "pin-1", snap.Pin.Tools)
+	p, err := writeApprovedPin(pinPath, snap.Pin)
 	if err != nil {
 		return core.Pin{}, err
 	}
@@ -249,6 +260,13 @@ func ListToolsFromServer(ctx context.Context, start StartFunc) ([]core.ToolDef, 
 
 // ApproveFromServer lists live tools and writes a 0600 pin (CLI / non-TTY).
 func ApproveFromServer(ctx context.Context, pinPath string, start StartFunc) (core.Pin, error) {
+	return ApproveFromServerWithConfig(ctx, pinPath, start, core.ConfigIdentity{})
+}
+
+// ApproveFromServerWithConfig is ApproveFromServer plus #21 pin identity
+// (argv after `--` + inventory env). Official GitHub MCP `--toolsets` /
+// `--tools` / GITHUB_TOOLSETS changes then compare fingerprints.
+func ApproveFromServerWithConfig(ctx context.Context, pinPath string, start StartFunc, cfg core.ConfigIdentity) (core.Pin, error) {
 	if pinPath == "" {
 		return core.Pin{}, fmt.Errorf("pin path required")
 	}
@@ -259,11 +277,33 @@ func ApproveFromServer(ctx context.Context, pinPath string, start StartFunc) (co
 	if len(tools) == 0 {
 		return core.Pin{}, fmt.Errorf("tools/list returned no tools")
 	}
-	p, err := WritePinFile(pinPath, "pin-1", tools)
+	return ApproveToolsWithConfig(pinPath, tools, cfg)
+}
+
+// ApproveToolsWithConfig writes a 0600 pin for live tools, binding
+// config_fingerprint / pin_id when cfg has argv, env, or a server name.
+func ApproveToolsWithConfig(pinPath string, tools []core.ToolDef, cfg core.ConfigIdentity) (core.Pin, error) {
+	p, err := WritePinFileWithConfig(pinPath, "pin-1", tools, cfg)
 	if err != nil {
 		return core.Pin{}, err
 	}
 	_ = os.Remove(PendingPath(pinPath))
+	return p, nil
+}
+
+// writeApprovedPin persists tools from a pending snapshot and keeps any
+// #21 identity already computed for that catalog.
+func writeApprovedPin(pinPath string, pending core.Pin) (core.Pin, error) {
+	if pending.ConfigFingerprint == "" && pending.ServerName == "" {
+		return WritePinFile(pinPath, "pin-1", pending.Tools)
+	}
+	p := core.PinTools(pending.Tools, "pin-1")
+	p.ServerName = pending.ServerName
+	p.ConfigFingerprint = pending.ConfigFingerprint
+	p.PinID = core.ComputePinID(p.ServerName, p.ConfigFingerprint, p.Aggregate)
+	if err := writeJSONFile(pinPath, p); err != nil {
+		return core.Pin{}, fmt.Errorf("write pin: %w", err)
+	}
 	return p, nil
 }
 

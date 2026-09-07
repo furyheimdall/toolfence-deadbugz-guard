@@ -151,6 +151,31 @@ func TestApproveFromPending(t *testing.T) {
 	}
 }
 
+func TestApplyNonTTYApproveStampsGitHubFingerprint(t *testing.T) {
+	cfg := Config{
+		PinPath:    filepath.Join(t.TempDir(), "github.json"),
+		Approve:    true,
+		ServerName: "github",
+		ServerArgv: []string{"/usr/bin/github-mcp-server", "--toolsets", "repos"},
+		ServerEnv:  []string{"GITHUB_TOOLSETS=repos", "GITHUB_PERSONAL_ACCESS_TOKEN=ghp_secret"},
+	}
+	p, ok, err := ApplyNonTTYApprove(cfg, core.ReasonPinMissing, mockmcp.Tools(mockmcp.ModeBenign))
+	if err != nil || !ok {
+		t.Fatalf("bootstrap: ok=%v err=%v", ok, err)
+	}
+	want := processIdentity(cfg)
+	if p.ConfigFingerprint == "" || p.ConfigFingerprint != want.Fingerprint() {
+		t.Fatalf("fingerprint %s want %s", p.ConfigFingerprint, want.Fingerprint())
+	}
+	if p.PinID == "" || p.ServerName != "github" {
+		t.Fatalf("identity: %+v", p)
+	}
+	tokenless := core.NewConfigIdentity(cfg.ServerArgv, []string{"GITHUB_TOOLSETS=repos"})
+	if p.ConfigFingerprint != tokenless.Fingerprint() {
+		t.Fatal("token must not enter config_fingerprint")
+	}
+}
+
 func TestApproveFromServer(t *testing.T) {
 	dir := t.TempDir()
 	pin := filepath.Join(dir, "pin.json")
