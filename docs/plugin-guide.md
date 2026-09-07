@@ -292,3 +292,13 @@ Prove allow vs deny before wrapping a production server:
 | **poison** | **deny** (fail-closed) |
 
 Details and the visual: [demo](demo.md). Compose (beside) stays in the [README](../README.md#compose-beside).
+
+### Filesystem + Fetch wrap verify (E3 / #23)
+
+Scripted, no-TTY check that the Cursor launchers attach and pin:
+
+```bash
+./scripts/verify-filesystem-fetch.sh
+```
+
+Uses `deadbugz-guard approve` / `--approve` / `--approve-file`, asserts pin mode `0600`, and a later `tools/list` allow when unchanged. CI runs the same job (`verify-filesystem-fetch` in `.github/workflows/ci.yml`). Local skip gates and the E1 toolsets hook: [scripts/README.md](../scripts/README.md). GitHub official MCP toolsets CI is E1's half of #23 — not this script.
