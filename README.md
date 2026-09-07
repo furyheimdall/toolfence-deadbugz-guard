@@ -62,9 +62,13 @@ Chosen so the sidecar ships as one static binary, speaks stdio with the standard
 
 This is **not** a full stdio / multi-server gateway product (epic OUT).
 
-## Mapping vs AGT
+## Mapping vs Pipelock
 
-AGT is the nearest public OSS *pattern*: a process that sits next to a tool server and observes the listing path. This pilot copies that **boundary** only (wrap vs target). It does not copy AGT source, names, or proprietary structure.
+Pipelock is a full egress firewall with drift detect; Deadbugz is a thin durable-pin sidecar that fails closed until re-approval.
+
+Pipelock is the nearest public OSS peer (~835★): a full **egress firewall** where SHA-256 drift detect and `action:ask` HITL are one feature among many — session/scan-oriented. Competitor price anchor only: **Founding Pro $49/mo** (Pipelock's pricing, not ours).
+
+Deadbugz guard's product spine is the **durable pin**: pin → live `tools/list` diff → **fail-closed until HITL re-approval**. It sits beside the host MCP path as a thin sidecar/plugin.
 
 ## Core loop
 
