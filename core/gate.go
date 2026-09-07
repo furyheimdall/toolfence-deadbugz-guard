@@ -29,6 +29,8 @@ type MemoryGate struct {
 	auditor  Auditor
 	actor    string
 	now      func() time.Time
+	cfg      ConfigIdentity
+	cfgArmed bool
 }
 
 // NewMemoryGate returns an empty fail-closed gate (PIN_MISSING until an
@@ -52,6 +54,26 @@ func (g *MemoryGate) SetAuditor(a Auditor) { g.auditor = a }
 // SetActor is the default "who" written on approved/denied events.
 func (g *MemoryGate) SetActor(who string) { g.actor = who }
 
+// SetConfig attaches the process inventory (argv after `--` + env subset)
+// used to compute config_fingerprint. Existing Evaluate(live) callers that
+// never call this keep the #5 tools-only path (DIFF_NONEMPTY).
+func (g *MemoryGate) SetConfig(cfg ConfigIdentity) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if cfg.ServerName == "" {
+		cfg.ServerName = ServerNameFromArgv(cfg.Argv)
+	}
+	g.cfg = cfg
+	g.cfgArmed = true
+}
+
+// Config returns the identity last passed to SetConfig, if any.
+func (g *MemoryGate) Config() ConfigIdentity {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.cfg
+}
+
 // InstallInitialPin sets the first pin only. Later hash advances must go
 // through ApplyApproval(approve). Evaluate never calls this.
 func (g *MemoryGate) InstallInitialPin(p Pin) error {
@@ -59,6 +81,9 @@ func (g *MemoryGate) InstallInitialPin(p Pin) error {
 	defer g.mu.Unlock()
 	if g.pin != nil {
 		return ErrSilentRepin
+	}
+	if p.ConfigFingerprint != "" && p.PinID == "" {
+		p.PinID = ComputePinID(p.ServerName, p.ConfigFingerprint, p.Aggregate)
 	}
 	if g.store != nil {
 		if existing, err := g.store.Load(); err == nil && existing != nil {
@@ -102,8 +127,12 @@ func (g *MemoryGate) PendingCandidate() *Pin {
 // Evaluate is fail-closed:
 //   - no pin / tampered pin → PIN_MISSING (no silent re-pin)
 //   - pending re-approval → APPROVAL_PENDING (all tool calls denied; Chief F)
-//   - aggregate match → Allow{pin_revision}
-//   - add / remove / description or schema change → DIFF_NONEMPTY
+//   - aggregate match (and no fingerprint change) → Allow{pin_revision}
+//   - config_fingerprint change (even if an old tools hash matches) →
+//     config_or_inventory_changed (expected re-approval)
+//   - same fingerprint, live tools/list changed → tools_list_drift
+//     (fail-closed, never auto-promote)
+//   - legacy pin with no fingerprint + tools change → DIFF_NONEMPTY
 func (g *MemoryGate) Evaluate(_ context.Context, live []ToolDef) GateDecision {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -124,13 +153,37 @@ func (g *MemoryGate) Evaluate(_ context.Context, live []ToolDef) GateDecision {
 		g.seq--
 		return Deny(ReasonInternalError, nil)
 	}
+
+	liveFp := ""
+	if g.cfgArmed {
+		BindPinIdentity(&livePin, g.cfg)
+		liveFp = livePin.ConfigFingerprint
+	}
+
+	pinFp := g.pin.ConfigFingerprint
+	// Fingerprint comparison is armed only when the caller SetConfig and
+	// the pin already carries one. Legacy pins stay on the tools-only
+	// path so A–J / write-pin then wrap still allow; Evaluate(live)
+	// without SetConfig keeps the #5 surface.
+	if g.cfgArmed && pinFp != "" && liveFp != pinFp {
+		diff := summarize(*g.pin, livePin)
+		fillIdentityDiff(&diff, ReasonConfigOrInventoryChanged, pinFp, liveFp, livePin.PinID)
+		g.pending = &pendingApproval{Candidate: livePin, Diff: &diff}
+		return Deny(ReasonConfigOrInventoryChanged, copyDiff(&diff))
+	}
+
 	if livePin.Aggregate == g.pin.Aggregate {
 		g.seq-- // no candidate consumed
 		return Allow(g.pin.Version)
 	}
 	diff := summarize(*g.pin, livePin)
+	code := ReasonDiffNonempty
+	if pinFp != "" && liveFp == pinFp {
+		code = ReasonToolsListDrift
+	}
+	fillIdentityDiff(&diff, code, pinFp, liveFp, livePin.PinID)
 	g.pending = &pendingApproval{Candidate: livePin, Diff: &diff}
-	return Deny(ReasonDiffNonempty, copyDiff(&diff))
+	return Deny(code, copyDiff(&diff))
 }
 
 // AuthorizeCall re-evaluates the current tools/list before every call
@@ -271,4 +324,14 @@ func copyDiff(d *ToolDiffSummary) *ToolDiffSummary {
 	out.Removed = append([]string(nil), d.Removed...)
 	out.Changed = append([]string(nil), d.Changed...)
 	return &out
+}
+
+func fillIdentityDiff(d *ToolDiffSummary, code ReasonCode, pinFp, liveFp, pinID string) {
+	if d == nil {
+		return
+	}
+	d.ReasonCode = code
+	d.ConfigFingerprint = pinFp
+	d.LiveFingerprint = liveFp
+	d.PinID = pinID
 }

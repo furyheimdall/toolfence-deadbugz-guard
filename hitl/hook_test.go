@@ -273,3 +273,39 @@ func TestDeniedErrorIsTimeoutClass(t *testing.T) {
 		t.Fatal("sentinel")
 	}
 }
+
+func TestConfigFingerprintChangeRequestsHITLEvenIfToolsMatch(t *testing.T) {
+	tools := []core.ToolDef{{Name: "search", Description: "q"}}
+	oldCfg := core.NewConfigIdentity([]string{"github-mcp-server", "--toolsets", "repos"}, nil)
+	newCfg := core.NewConfigIdentity([]string{"github-mcp-server", "--toolsets", "issues"}, nil)
+	g := core.NewMemoryGate()
+	g.SetConfig(newCfg)
+	old := core.PinToolsWithConfig(tools, "pin-1", oldCfg)
+	if err := g.InstallInitialPin(old); err != nil {
+		t.Fatal(err)
+	}
+	var saw core.ToolDiffSummary
+	h := &Hook{
+		Gate: g,
+		Approver: &CallbackApprover{Fn: func(ctx context.Context, diff core.ToolDiffSummary, cand core.Pin) (string, string, error) {
+			saw = diff
+			if cand.ConfigFingerprint != newCfg.Fingerprint() {
+				t.Fatalf("candidate fingerprint %s", cand.ConfigFingerprint)
+			}
+			return cand.Version, "alice", nil
+		}},
+	}
+	d := h.Evaluate(context.Background(), tools)
+	if !d.Allowed {
+		t.Fatalf("HITL approve of config change: %+v", d)
+	}
+	if saw.ReasonCode != core.ReasonConfigOrInventoryChanged {
+		t.Fatalf("reason=%s", saw.ReasonCode)
+	}
+	if !saw.Empty() {
+		t.Fatalf("tools hash matched, names should be empty: %+v", saw)
+	}
+	if g.CurrentPin().ConfigFingerprint != newCfg.Fingerprint() {
+		t.Fatal("approve must persist the new fingerprint")
+	}
+}

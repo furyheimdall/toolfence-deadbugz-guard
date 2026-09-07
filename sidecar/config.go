@@ -11,6 +11,9 @@ type Config struct {
 	AuditPath    string
 	HITLEndpoint string
 	CallGate     int // Deadbugz path; 3 = pin + diff + call gate
+	// ServerArgv is argv after `--` (the wrapped server). Used for
+	// config_fingerprint (#21). Empty keeps the legacy tools-only gate.
+	ServerArgv []string
 }
 
 // DefaultCallGate is Chief E / issue #7: call_gate=3.

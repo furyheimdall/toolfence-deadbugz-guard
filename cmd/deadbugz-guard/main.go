@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/furyheimdall/toolfence-deadbugz-guard/core"
 	"github.com/furyheimdall/toolfence-deadbugz-guard/internal/mockmcp"
 	"github.com/furyheimdall/toolfence-deadbugz-guard/sidecar"
 )
@@ -33,22 +34,27 @@ func main() {
 	cfg.HITLEndpoint = *hitl
 	cfg.CallGate = *callGate
 
+	argv := flag.Args()
 	if *writePin {
 		if cfg.PinPath == "" {
 			fatal(" --write-pin requires --pin / PIN_PATH")
 		}
-		if _, err := sidecar.WritePinFile(cfg.PinPath, "", mockmcp.Tools(*fromMode)); err != nil {
+		ident := core.ConfigIdentity{}
+		if len(argv) > 0 {
+			ident = core.NewConfigIdentity(argv, os.Environ())
+		}
+		if _, err := sidecar.WritePinFileWithConfig(cfg.PinPath, "", mockmcp.Tools(*fromMode), ident); err != nil {
 			fatal(err.Error())
 		}
 		fmt.Fprintf(os.Stderr, "wrote pin %s\n", cfg.PinPath)
 		os.Exit(0)
 	}
 
-	argv := flag.Args()
 	if len(argv) == 0 {
 		flag.Usage()
 		os.Exit(2)
 	}
+	cfg.ServerArgv = argv
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()

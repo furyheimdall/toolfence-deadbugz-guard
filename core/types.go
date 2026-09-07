@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// ReasonCode is the issue #5 vocabulary. Callers must not invent aliases
-// (no GateStatus.Code / DIFF_DETECTED / APPROVAL_REQUIRED names).
+// ReasonCode is the issue #5 vocabulary plus the #21 split. Callers must
+// not invent aliases (no GateStatus.Code / DIFF_DETECTED / APPROVAL_REQUIRED).
 type ReasonCode string
 
 const (
@@ -18,7 +18,25 @@ const (
 	ReasonApprovalPending ReasonCode = "APPROVAL_PENDING"
 	ReasonPinMissing      ReasonCode = "PIN_MISSING"
 	ReasonInternalError   ReasonCode = "INTERNAL_ERROR"
+
+	// ReasonConfigOrInventoryChanged is an intentional argv / env /
+	// toolsets / credential-scope inventory change. Expected re-approval.
+	ReasonConfigOrInventoryChanged ReasonCode = "config_or_inventory_changed"
+	// ReasonToolsListDrift is a silent tools/list mutate under the same
+	// config_fingerprint. Fail-closed; never auto-promote.
+	ReasonToolsListDrift ReasonCode = "tools_list_drift"
 )
+
+// RequiresApproval reports whether Evaluate is asking for a human re-pin.
+// DIFF_NONEMPTY is the legacy (no fingerprint) tools mismatch.
+func (c ReasonCode) RequiresApproval() bool {
+	switch c {
+	case ReasonDiffNonempty, ReasonConfigOrInventoryChanged, ReasonToolsListDrift:
+		return true
+	default:
+		return false
+	}
+}
 
 // ApprovalOutcome is the apply_approval decision consumed by the gate.
 type ApprovalOutcome string
@@ -39,23 +57,34 @@ type ToolDef struct {
 
 // Pin is the candidate / active hash-pin. Aggregate is the SHA-256 hex
 // (newHash / oldHash). Version is pin_revision.
+//
+// Issue #21 store layout: pin_id = hash(server_name || config_fingerprint ||
+// canonical_tools_hash). Legacy pins omit these fields; Evaluate then
+// compares tools only (DIFF_NONEMPTY).
 type Pin struct {
-	Version    string            `json:"version"`
-	Aggregate  string            `json:"aggregate"`
-	ToolHashes map[string]string `json:"tool_hashes,omitempty"`
-	Tools      []ToolDef         `json:"tools,omitempty"`
-	CreatedAt  time.Time         `json:"created_at"`
+	Version           string            `json:"version"`
+	Aggregate         string            `json:"aggregate"`
+	ToolHashes        map[string]string `json:"tool_hashes,omitempty"`
+	Tools             []ToolDef         `json:"tools,omitempty"`
+	CreatedAt         time.Time         `json:"created_at"`
+	ServerName        string            `json:"server_name,omitempty"`
+	ConfigFingerprint string            `json:"config_fingerprint,omitempty"`
+	PinID             string            `json:"pin_id,omitempty"`
 }
 
 // ToolDiffSummary is the HITL request payload and Deny.diff (issue #5).
 // Tool names only — never raw schemas or call arguments.
 type ToolDiffSummary struct {
-	Added       []string `json:"added"`
-	Removed     []string `json:"removed"`
-	Changed     []string `json:"changed"`
-	PinRevision string   `json:"pin_revision"`
-	LiveHash    string   `json:"live_hash"`
-	PinHash     string   `json:"pin_hash"`
+	Added             []string   `json:"added"`
+	Removed           []string   `json:"removed"`
+	Changed           []string   `json:"changed"`
+	PinRevision       string     `json:"pin_revision"`
+	LiveHash          string     `json:"live_hash"`
+	PinHash           string     `json:"pin_hash"`
+	ReasonCode        ReasonCode `json:"reason_code,omitempty"`
+	ConfigFingerprint string     `json:"config_fingerprint,omitempty"`
+	LiveFingerprint   string     `json:"live_fingerprint,omitempty"`
+	PinID             string     `json:"pin_id,omitempty"`
 }
 
 // Empty reports whether the tools/list diff has no added/removed/changed names.
@@ -133,6 +162,21 @@ func ApproverDecisionLabel(err error) string {
 // redaction-safe fields (see audit.AllowedFields).
 type Auditor interface {
 	Record(event string, fields map[string]any)
+}
+
+// ConfigIdentity is the process inventory used for config_fingerprint:
+// argv after `--` plus an allowlisted env subset (never tokens/secrets).
+type ConfigIdentity struct {
+	ServerName string
+	Argv       []string
+	Env        map[string]string
+}
+
+// ConfigAware is an optional Gate extension. Sidecar/CLI set this from
+// argv after `--` and the inventory env subset. The Gate interface itself
+// stays Evaluate(live) so HITL/audit keep compiling.
+type ConfigAware interface {
+	SetConfig(cfg ConfigIdentity)
 }
 
 // Gate is the #5 surface HITL wires into.
