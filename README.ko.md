@@ -125,6 +125,7 @@ compose 안에서도 `deadbugz-guard`는 primary wrap 형태를 씁니다: `dead
 | **poison** | **deny** (fail-closed) |
 | **add** / **remove** | **fail-closed** |
 | **deadbugz** + **`call_gate=3`** | gate 이후 `tools/call`을 block |
+| **J** 동시/진행 중 poisoned `tools/list` | 이후 `tools/call` **denied** |
 
 `FLIP_PATH`는 JSON 상태 파일입니다 `{ "mode": "benign\|poison\|add\|remove\|reorder\|deadbugz", "call_gate": 3 }`. 모드 변경은 **atomic `mv`만** 씁니다 (`WriteFlip`: temp write → rename). 예: [`testdata/flip.json`](testdata/flip.json).
 

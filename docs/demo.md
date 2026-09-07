@@ -22,6 +22,10 @@ PASS  reorder → allow
 PASS  poison → deny
 PASS  add / remove → fail-closed
 PASS  deadbugz + call_gate=3 → block after gate
+PASS  G re-approve → pin newHash + audit who/when/oldHash/newHash
+PASS  H deny/timeout → old pin kept
+PASS  I PIN_MISSING / pin tamper (headless wrap)
+PASS  J concurrent poisoned tools/list → subsequent calls denied
 ok
 ```
 

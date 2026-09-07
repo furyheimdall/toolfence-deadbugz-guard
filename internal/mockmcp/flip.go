@@ -14,9 +14,21 @@ const DefaultCallGate = 3
 
 // FlipState is the FLIP_PATH fixture (Chief spec on PR #11).
 // Changes must be published with WriteFlip (temp file → os.Rename only).
+//
+// ListHold, when true, makes the next tools/list wait until a later
+// WriteFlip clears it. Smoke J uses this for mid-session in-flight poison.
 type FlipState struct {
 	Mode     string `json:"mode"`
 	CallGate int    `json:"call_gate"`
+	ListHold bool   `json:"list_hold,omitempty"`
+}
+
+// HeldPath is the marker written while tools/list is blocked on ListHold.
+func HeldPath(flipPath string) string {
+	if flipPath == "" {
+		return ""
+	}
+	return flipPath + ".held"
 }
 
 // DefaultFlip is benign + call_gate=3.
@@ -58,8 +70,9 @@ func parseFlip(b []byte) (FlipState, bool) {
 		}
 		return st, true
 	}
-	// key=value lines: mode=poison\ncall_gate=3
+	// key=value lines: mode=poison\ncall_gate=3\nlist_hold=true
 	mode, gate, saw := "", 0, false
+	hold, sawHold := false, false
 	for _, line := range strings.Split(trim, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
@@ -79,6 +92,9 @@ func parseFlip(b []byte) (FlipState, bool) {
 			if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
 				gate, saw = n, true
 			}
+		case "list_hold":
+			hold, sawHold = parseBoolish(strings.TrimSpace(v)), true
+			saw = true
 		}
 	}
 	if !saw {
@@ -88,7 +104,19 @@ func parseFlip(b []byte) (FlipState, bool) {
 	if gate > 0 {
 		st.CallGate = gate
 	}
+	if sawHold {
+		st.ListHold = hold
+	}
 	return st, true
+}
+
+func parseBoolish(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 // WriteFlip publishes a new fixture via temp write + os.Rename only.

@@ -4,7 +4,9 @@
 
 Fixture loop against `mock-mcp-deadbugz` (benign allow / poison deny). Not a live host attach.
 
-A–F stay the existing sidecar/mockmcp tests. **G/H** (#32) are headless E2E in this script: wrap `--approve-file` after a nonempty `FLIP_PATH` diff, plus HITL hook/stub deny and timeout. **I** (#33) is headless wrap `PIN_MISSING` / pin tamper (no silent re-pin; explicit approve still required). J belongs to another owner — do not add it here.
+A–F stay the existing sidecar/mockmcp tests. **G/H** (#32) are headless E2E in this script: wrap `--approve-file` after a nonempty `FLIP_PATH` diff, plus HITL hook/stub deny and timeout. **I** (#33) is headless wrap `PIN_MISSING` / pin tamper (no silent re-pin; explicit approve still required). **J** (#34) is a mid-session `FLIP_PATH` poison under an already-pinned wrap: in-flight `tools/list` is hashed before forward; subsequent `tools/call` denied.
+
+`scripts/smokej` is a CI helper for that live wrap session. It is not a product command.
 
 ```bash
 ./scripts/smoke.sh
