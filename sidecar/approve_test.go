@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/furyheimdall/toolfence-deadbugz-guard/audit"
 	"github.com/furyheimdall/toolfence-deadbugz-guard/core"
 	"github.com/furyheimdall/toolfence-deadbugz-guard/internal/mockmcp"
 )
@@ -118,6 +119,53 @@ func TestNonTTYApproveFileConsumesOnDrift(t *testing.T) {
 	dec := g.Evaluate(context.Background(), mockmcp.Tools(mockmcp.ModePoison))
 	if !dec.Allowed {
 		t.Fatalf("new pin should match poison: %+v", dec)
+	}
+}
+
+func TestNonTTYApproveFileAuditsWhoWhenOldNew(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "pin.json")
+	old, err := WritePinFile(path, "pin-1", mockmcp.Tools(mockmcp.ModeBenign))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tok := filepath.Join(dir, "approve")
+	if err := os.WriteFile(tok, []byte("approve\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	auditPath := filepath.Join(dir, "audit.jsonl")
+	cfg := Config{PinPath: path, ApproveFile: tok, AuditPath: auditPath}
+	p, ok, err := ApplyNonTTYApprove(cfg, core.ReasonDiffNonempty, mockmcp.Tools(mockmcp.ModePoison))
+	if err != nil || !ok {
+		t.Fatalf("token should re-pin drift: ok=%v err=%v", ok, err)
+	}
+	if p.Aggregate == old.Aggregate {
+		t.Fatal("G: pin must advance to newHash")
+	}
+	rows, err := audit.Tail(auditPath, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var approved map[string]any
+	for _, r := range rows {
+		if r["event"] == audit.EventApproved {
+			approved = r
+		}
+	}
+	if approved == nil {
+		t.Fatalf("missing approved event: %+v", rows)
+	}
+	if approved["who"] != "approve-file" {
+		t.Fatalf("who=%v", approved["who"])
+	}
+	if approved["when"] == nil || approved["when"] == "" {
+		t.Fatal("when missing")
+	}
+	if approved["oldHash"] != old.Aggregate {
+		t.Fatalf("oldHash=%v want %s", approved["oldHash"], old.Aggregate)
+	}
+	if approved["newHash"] != p.Aggregate {
+		t.Fatalf("newHash=%v want %s", approved["newHash"], p.Aggregate)
 	}
 }
 
