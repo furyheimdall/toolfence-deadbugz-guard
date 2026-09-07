@@ -73,10 +73,10 @@ Deadbugz guard's product spine is the **durable pin**: pin → live `tools/list`
 ## Core loop
 
 1. **Hash-pin** approved MCP tool definitions.
-2. **Diff** the live `tools/list` against that pin on every listing.
+2. **Diff** the live `tools/list` against that pin on every listing — hashed **before** the host sees the list, including a guard-owned refresh after `list_changed`.
 3. On mismatch → **fail closed** and require **re-approval** before the new definitions are trusted.
 
-HITL and audit exist only to support that re-approval path.
+HITL and audit exist only to support that re-approval path. Host `list_changed` / deferred-tool refresh (and Claude Code bugs around them) are **not** a security boundary; see [SECURITY.md](SECURITY.md#host-list_changed-is-not-a-security-boundary).
 
 ## Install
 

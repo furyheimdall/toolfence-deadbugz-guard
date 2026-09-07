@@ -56,7 +56,7 @@ If you need those, they belong in another component. Deadbugz guard does not sta
 Assumptions for MVP:
 
 - The **operator** who creates the first pin and later re-approves is trusted.
-- The **agent host** is trusted to invoke Deadbugz guard on the `tools/list` path and to honor a fail-closed result. If the host bypasses the sidecar, the pin does not apply.
+- The **agent host** is trusted to invoke Deadbugz guard on the stdio wrap path and to honor a fail-closed result. It is **not** trusted to refresh after `notifications/tools/list_changed`, to load deferred tools correctly, or to treat those events as authoritative. If the host bypasses the sidecar, the pin does not apply.
 - The **MCP server** is *not* trusted to keep tool definitions stable. Silent add / remove / schema change is the primary threat this loop addresses.
 - **Local disk** that holds the pin and JSONL is trusted at the same level as the host. Pin-store tamper is in scope as a failure mode; full disk encryption and remote attestation are not.
 - There is **no** cloud control plane and **no** third-party approval broker in the MVP trust set.
@@ -67,6 +67,7 @@ Assumptions for MVP:
 | --- | --- | --- |
 | Canonical serialize + hash-pin | Stable hash of approved tool defs ([#3](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/3)) | Local file store; no remote pin registry |
 | `tools/list` diff | Added / removed / changed tools vs pin ([#4](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/4)) | Listing path only; not `tools/call` |
+| Hash-before-forward | Every live listing (host `tools/list` and post-`list_changed` refresh) is hashed/diffed **before** the host sees it ([#22](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/22)) | stdio wrap only; not a remote HTTP proxy |
 | Fail-closed gate | Default deny when the diff is non-empty ([#5](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/5)) | Host must not bypass the gate |
 | HITL re-approval | Human sees a diff summary; approve binds a new pin revision ([#6](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/6)) | Local callback / CLI / HTTP stub; no SaaS |
 | Local JSONL audit | Append-only events: pin_created, diff_detected, blocked, approved, denied ([#8](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/8)) | Local tail only; no remote shipping |
@@ -86,6 +87,12 @@ Deadbugz guard stays shut (listing not trusted / not forwarded as approved) when
 | Audit log cannot be appended (if the implementation requires it for the decision) | Closed | Local log path is writable again |
 
 Fail-open on “diff engine crashed” or “audit disk full” is **not** an MVP behavior. Ambiguity defaults to closed.
+
+## Host `list_changed` is not a security boundary
+
+Claude Code and other hosts have had bugs around `notifications/tools/list_changed` and deferred-tool refresh (skipped re-list, stale cache, treating the notification as authoritative). Those bugs must not weaken the gate.
+
+Deadbugz guard hashes and diffs every live `tools/list` — including a guard-owned refresh after `list_changed` — **before** forwarding a listing to the host. Mid-session poison / add / remove stays fail-closed on the next inventory the wrap observes (typically the call-gate `tools/list` sync) without waiting for the client to refresh. A host `list_changed` or deferred-tool reload is ignored as a security event.
 
 Re-approval never means “allow this listing this once.” It means “this exact pin revision is now the trusted pin.”
 

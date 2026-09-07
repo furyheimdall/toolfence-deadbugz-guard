@@ -45,6 +45,11 @@ func ExecStart(argv []string) StartFunc {
 }
 
 // Wrap observes tools/list (and tools/call when CallGate>=3) on a stdio MCP pipe.
+//
+// Every tools/list result is hashed/diffed before it is forwarded. Server
+// notifications/tools/list_changed trigger a guard-owned refresh that is also
+// hashed before anything reaches the host. Host list_changed / deferred-tool
+// refresh is not a security boundary (#22).
 type Wrap struct {
 	Cfg  Config
 	Gate core.Gate
@@ -52,9 +57,13 @@ type Wrap struct {
 	clientOut io.Writer
 	clientMu  sync.Mutex
 
+	serverIn *mcpio.Writer
+	serverMu sync.Mutex
+
 	mu      sync.Mutex
 	pending map[string]string // id -> method
 	syncCh  chan mcpio.Message
+	syncMu  sync.Mutex // one in-flight deadbugz-sync at a time
 	syncN   atomic.Uint64
 }
 
@@ -74,6 +83,7 @@ func Run(ctx context.Context, cfg Config, clientIn io.Reader, clientOut io.Write
 		Cfg:       cfg,
 		Gate:      g,
 		clientOut: clientOut,
+		serverIn:  mcpio.NewWriter(stdin),
 		pending:   map[string]string{},
 		syncCh:    make(chan mcpio.Message, 4),
 	}
@@ -83,7 +93,7 @@ func Run(ctx context.Context, cfg Config, clientIn io.Reader, clientOut io.Write
 		errCh <- w.pumpServer(ctx, stdout, clientOut)
 	}()
 	go func() {
-		errCh <- w.pumpClient(ctx, clientIn, stdin)
+		errCh <- w.pumpClient(ctx, clientIn)
 	}()
 
 	select {
@@ -100,9 +110,8 @@ func Run(ctx context.Context, cfg Config, clientIn io.Reader, clientOut io.Write
 	}
 }
 
-func (w *Wrap) pumpClient(ctx context.Context, in io.Reader, serverIn io.Writer) error {
+func (w *Wrap) pumpClient(ctx context.Context, in io.Reader) error {
 	r := bufio.NewReader(in)
-	sw := mcpio.NewWriter(serverIn)
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -115,24 +124,30 @@ func (w *Wrap) pumpClient(ctx context.Context, in io.Reader, serverIn io.Writer)
 		if err := json.Unmarshal(raw, &msg); err != nil {
 			continue
 		}
-		if err := w.handleClient(msg, sw); err != nil {
+		if err := w.handleClient(msg); err != nil {
 			return err
 		}
 	}
 }
 
-func (w *Wrap) handleClient(msg mcpio.Message, serverIn *mcpio.Writer) error {
-	switch msg.Method {
-	case "tools/list":
+func (w *Wrap) handleClient(msg mcpio.Message) error {
+	switch {
+	case isListChangedMethod(msg.Method):
+		// Host list_changed / deferred-tool refresh is not a security
+		// boundary. Pass the notification through; the gate still hashes
+		// the next live inventory (list or call-gate sync) itself.
+		log.Printf("deadbugz host %s ignored as security boundary", msg.Method)
+		return w.writeServer(msg)
+	case msg.Method == "tools/list":
 		w.track(msg.IDString(), "tools/list")
-		return serverIn.WriteJSON(msg)
-	case "tools/call":
+		return w.writeServer(msg)
+	case msg.Method == "tools/call":
 		if w.Cfg.CallGate >= DefaultCallGate {
-			live, err := w.syncToolsList(serverIn)
+			live, err := w.syncToolsList()
 			if err != nil {
 				return w.writeClientDeny(msg.ID, core.Deny(core.ReasonInternalError, nil))
 			}
-			dec := w.Gate.Evaluate(context.Background(), live)
+			dec := w.evaluateLive(live)
 			kind := "deny"
 			if dec.Allowed {
 				kind = "allow"
@@ -142,9 +157,9 @@ func (w *Wrap) handleClient(msg mcpio.Message, serverIn *mcpio.Writer) error {
 				return w.writeClientDeny(msg.ID, dec)
 			}
 		}
-		return serverIn.WriteJSON(msg)
+		return w.writeServer(msg)
 	default:
-		return serverIn.WriteJSON(msg)
+		return w.writeServer(msg)
 	}
 }
 
@@ -166,6 +181,15 @@ func (w *Wrap) pumpServer(ctx context.Context, serverOut io.Reader, clientOut io
 			}
 			continue
 		}
+
+		if isListChangedMethod(msg.Method) && len(msg.ID) == 0 {
+			// Server list_changed is not a security decision. Refresh
+			// and hash before the host sees a listing (or treats this
+			// notification as authoritative).
+			go w.handleServerListChanged(ctx, cw, msg)
+			continue
+		}
+
 		id := msg.IDString()
 		w.mu.Lock()
 		method := w.pending[id]
@@ -182,18 +206,12 @@ func (w *Wrap) pumpServer(ctx context.Context, serverOut io.Reader, clientOut io
 		delete(w.pending, id)
 		w.mu.Unlock()
 
-		if method == "tools/list" && len(msg.Result) > 0 {
-			tools, perr := parseTools(msg.Result)
-			if perr == nil {
-				dec := w.Gate.Evaluate(context.Background(), tools)
-				if !dec.Allowed {
-					log.Printf("deadbugz tools/list deny reason=%s", dec.ReasonCode)
-					if err := w.writeClientDenyTo(cw, msg.ID, dec); err != nil {
-						return err
-					}
-					continue
-				}
+		if deny, dec := w.denyToolsListForward(msg, method); deny {
+			log.Printf("deadbugz tools/list deny reason=%s", dec.ReasonCode)
+			if err := w.writeClientDenyTo(cw, msg.ID, dec); err != nil {
+				return err
 			}
+			continue
 		}
 		w.clientMu.Lock()
 		err = cw.WriteJSON(msg)
@@ -204,7 +222,32 @@ func (w *Wrap) pumpServer(ctx context.Context, serverOut io.Reader, clientOut io
 	}
 }
 
-func (w *Wrap) syncToolsList(serverIn *mcpio.Writer) ([]core.ToolDef, error) {
+// handleServerListChanged hashes a guard-owned tools/list refresh, then
+// forwards the notification. The notification itself never opens the gate.
+func (w *Wrap) handleServerListChanged(ctx context.Context, cw *mcpio.Writer, msg mcpio.Message) {
+	live, err := w.syncToolsList()
+	if err != nil {
+		log.Printf("deadbugz list_changed refresh failed: %v", err)
+	} else {
+		dec := w.evaluateLive(live)
+		kind := "deny"
+		if dec.Allowed {
+			kind = "allow"
+		}
+		log.Printf("deadbugz list_changed refresh decision=%s reason=%s", kind, dec.ReasonCode)
+	}
+	if err := ctx.Err(); err != nil {
+		return
+	}
+	w.clientMu.Lock()
+	defer w.clientMu.Unlock()
+	_ = cw.WriteJSON(msg)
+}
+
+func (w *Wrap) syncToolsList() ([]core.ToolDef, error) {
+	w.syncMu.Lock()
+	defer w.syncMu.Unlock()
+
 	n := w.syncN.Add(1)
 	id, _ := json.Marshal(fmt.Sprintf("deadbugz-sync-%d", n))
 	req := mcpio.Message{
@@ -214,14 +257,55 @@ func (w *Wrap) syncToolsList(serverIn *mcpio.Writer) ([]core.ToolDef, error) {
 		Params:  json.RawMessage(`{}`),
 	}
 	w.track(req.IDString(), "deadbugz-sync")
-	if err := serverIn.WriteJSON(req); err != nil {
+	if err := w.writeServer(req); err != nil {
 		return nil, err
 	}
 	msg := <-w.syncCh
 	if len(msg.Error) > 0 {
 		return nil, fmt.Errorf("sync tools/list: %s", string(msg.Error))
 	}
-	return parseTools(msg.Result)
+	tools, err := parseTools(msg.Result)
+	if err != nil {
+		return nil, err
+	}
+	return tools, nil
+}
+
+func (w *Wrap) evaluateLive(live []core.ToolDef) core.GateDecision {
+	return w.Gate.Evaluate(context.Background(), live)
+}
+
+// denyToolsListForward hashes/diffs a tools/list result before the host sees
+// it. Parse failure is fail-closed (INTERNAL_ERROR) — never forward an
+// unhashed listing.
+func (w *Wrap) denyToolsListForward(msg mcpio.Message, pendingMethod string) (bool, core.GateDecision) {
+	if pendingMethod != "tools/list" && !looksLikeToolsListResult(msg) {
+		return false, core.GateDecision{}
+	}
+	if len(msg.Error) > 0 {
+		return false, core.GateDecision{}
+	}
+	if len(msg.Result) == 0 {
+		return true, core.Deny(core.ReasonInternalError, nil)
+	}
+	tools, err := parseTools(msg.Result)
+	if err != nil {
+		return true, core.Deny(core.ReasonInternalError, nil)
+	}
+	dec := w.evaluateLive(tools)
+	if !dec.Allowed {
+		return true, dec
+	}
+	return false, dec
+}
+
+func (w *Wrap) writeServer(v any) error {
+	w.serverMu.Lock()
+	defer w.serverMu.Unlock()
+	if w.serverIn == nil {
+		return fmt.Errorf("server stdin not attached")
+	}
+	return w.serverIn.WriteJSON(v)
 }
 
 func (w *Wrap) track(id, method string) {
@@ -262,6 +346,9 @@ func (w *Wrap) writeClientDenyTo(cw *mcpio.Writer, id json.RawMessage, dec core.
 }
 
 func parseTools(result json.RawMessage) ([]core.ToolDef, error) {
+	if len(result) == 0 {
+		return nil, fmt.Errorf("empty tools/list result")
+	}
 	var wrap struct {
 		Tools []core.ToolDef `json:"tools"`
 	}
@@ -269,4 +356,26 @@ func parseTools(result json.RawMessage) ([]core.ToolDef, error) {
 		return nil, err
 	}
 	return wrap.Tools, nil
+}
+
+func looksLikeToolsListResult(msg mcpio.Message) bool {
+	if len(msg.Result) == 0 {
+		return false
+	}
+	var wrap struct {
+		Tools json.RawMessage `json:"tools"`
+	}
+	if err := json.Unmarshal(msg.Result, &wrap); err != nil {
+		return false
+	}
+	return len(wrap.Tools) > 0 && wrap.Tools[0] == '['
+}
+
+func isListChangedMethod(method string) bool {
+	switch method {
+	case "notifications/tools/list_changed", "tools/list_changed":
+		return true
+	default:
+		return false
+	}
 }
