@@ -130,6 +130,8 @@ docker compose up --build
 
 Allow vs deny visual: [docs/assets/smoke-allow-deny.svg](docs/assets/smoke-allow-deny.svg) · how to re-run: [docs/demo.md](docs/demo.md).
 
+Adoption CI (not smoke G/H/I/J): `./scripts/verify-attach.sh` pins Filesystem + Fetch through the non-TTY approve path; `./scripts/verify-github-toolsets.sh` checks that a GitHub `--toolsets` / `GITHUB_TOOLSETS` change is `config_or_inventory_changed` (not `tools_list_drift`). See [plugin guide §8](docs/plugin-guide.md#8-ci--scripted-attach-verify).
+
 ## MVP IN / OUT (locked)
 
 **IN:** Deadbugz triangle (hash-pin → `tools/list` diff → fail-closed re-approval) + minimal HITL/audit as sidecar/plugin only.
@@ -187,6 +189,7 @@ audit/    JSONL Auditor (#8)
 sidecar/  deadbugz-guard stdio wrap (uses core.Gate)
 cmd/deadbugz-guard
 cmd/mock-mcp-deadbugz
+cmd/mock-mcp-adopt
 cmd/hitl
 cmd/audit
 ```

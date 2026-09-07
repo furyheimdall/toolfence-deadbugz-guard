@@ -19,3 +19,7 @@ jobs:
         run: go test ./... -count=1
       - name: smoke
         run: ./scripts/smoke.sh
+      - name: verify filesystem/fetch attach
+        run: ./scripts/verify-attach.sh
+      - name: verify github toolsets inventory change
+        run: ./scripts/verify-github-toolsets.sh

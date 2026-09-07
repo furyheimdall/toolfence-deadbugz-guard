@@ -4,6 +4,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/furyheimdall/toolfence-deadbugz-guard/core"
 )
 
 // Config is the wrap/plugin adapter surface (issue #7 / #20).
@@ -93,6 +95,17 @@ func firstEnv(keys ...string) string {
 		}
 	}
 	return ""
+}
+
+// ProcessIdentity is argv after `--` plus the inventory env subset (#21).
+// --name / DEADBUGZ_SERVER_NAME wins over argv[0] basename so pins stay
+// per Cursor server key (filesystem / fetch / github).
+func ProcessIdentity(cfg Config) core.ConfigIdentity {
+	ident := core.NewConfigIdentity(cfg.ServerArgv, os.Environ())
+	if cfg.ServerName != "" {
+		ident.ServerName = cfg.ServerName
+	}
+	return ident
 }
 
 func parseApproveEnv(v string) (bootstrap bool, file, httpURL string) {

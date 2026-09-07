@@ -8,7 +8,7 @@ deadbugz-guard -- <server> [args...]
 
 This is a sidecar on the existing MCP path. It is not a multi-server gateway.
 
-Cursor is the primary attach. Merge `mcpServers` into the **project** file `.cursor/mcp.json` or the **user** file `~/.cursor/mcp.json`. Ready-to-copy shapes: [`examples/plugin.json`](../examples/plugin.json), [`examples/cursor.mcp.json`](../examples/cursor.mcp.json), and [`examples/cursor-mcp.filesystem-fetch.json`](../examples/cursor-mcp.filesystem-fetch.json).
+Cursor is the primary attach. Merge `mcpServers` into the **project** file `.cursor/mcp.json` or the **user** file `~/.cursor/mcp.json`. Ready-to-copy shapes: [`examples/plugin.json`](../examples/plugin.json), [`examples/cursor.mcp.json`](../examples/cursor.mcp.json), [`examples/cursor-mcp.filesystem-fetch.json`](../examples/cursor-mcp.filesystem-fetch.json), and GitHub toolsets [`examples/cursor-mcp.github.json`](../examples/cursor-mcp.github.json).
 
 ## Cursor 60-second CTA
 
@@ -292,3 +292,23 @@ Prove allow vs deny before wrapping a production server:
 | **poison** | **deny** (fail-closed) |
 
 Details and the visual: [demo](demo.md). Compose (beside) stays in the [README](../README.md#compose-beside).
+
+## 8. CI / scripted attach verify
+
+`./scripts/smoke.sh` stays the A–F fixture table. Do **not** treat the jobs below as smoke G/H/I/J.
+
+**Filesystem + Fetch (non-TTY, IDE-spawn shaped).** Same wrap as the 60s CTA and [`examples/cursor.mcp.json`](../examples/cursor.mcp.json): `deadbugz-guard approve` then wrap, plus `DEADBUGZ_APPROVE=1` bootstrap. CI-friendly; no prompt.
+
+```bash
+./scripts/verify-attach.sh
+```
+
+The script uses `mock-mcp-adopt` (official-shaped Filesystem / Fetch catalogs). It does not download `npx` / `uvx` servers.
+
+**GitHub official MCP toolsets.** `--toolsets` / `GITHUB_TOOLSETS` is an intentional inventory change (`config_or_inventory_changed`, expected re-approval). The same argv with a mutated `tools/list` is `tools_list_drift` (fail-closed, never auto-promote). Lightweight stub — not full `github-mcp-server`.
+
+```bash
+./scripts/verify-github-toolsets.sh
+```
+
+Cursor-shaped GitHub wrap: [`examples/cursor-mcp.github.json`](../examples/cursor-mcp.github.json). `--toolsets` stays **after** `--`.

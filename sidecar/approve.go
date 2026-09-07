@@ -141,7 +141,7 @@ func ApplyNonTTYApprove(cfg Config, reason core.ReasonCode, live []core.ToolDef)
 	if !ok {
 		return core.Pin{}, false, nil
 	}
-	p, err := WritePinFile(cfg.PinPath, "pin-1", live)
+	p, err := WritePinFileWithConfig(cfg.PinPath, "pin-1", live, ProcessIdentity(cfg))
 	if err != nil {
 		return core.Pin{}, false, err
 	}
@@ -170,6 +170,21 @@ func WritePendingSnapshot(pinPath string, reason core.ReasonCode, live []core.To
 	return writeJSONFile(PendingPath(pinPath), snap)
 }
 
+// WritePendingSnapshotIdent is WritePendingSnapshot plus #21 identity.
+func WritePendingSnapshotIdent(pinPath string, reason core.ReasonCode, live []core.ToolDef, diff *core.ToolDiffSummary, ident core.ConfigIdentity) error {
+	if pinPath == "" {
+		return nil
+	}
+	var p core.Pin
+	if ident.ServerName != "" || len(ident.Argv) > 0 || len(ident.Env) > 0 {
+		p = core.PinToolsWithConfig(live, "pending-1", ident)
+	} else {
+		p = core.PinTools(live, "pending-1")
+	}
+	snap := PendingSnapshot{Reason: string(reason), Pin: p, Diff: diff}
+	return writeJSONFile(PendingPath(pinPath), snap)
+}
+
 // ApproveFromPending writes the durable pin from a pending snapshot.
 func ApproveFromPending(pinPath, pendingPath string) (core.Pin, error) {
 	if pendingPath == "" {
@@ -186,8 +201,9 @@ func ApproveFromPending(pinPath, pendingPath string) (core.Pin, error) {
 	if len(snap.Pin.Tools) == 0 {
 		return core.Pin{}, fmt.Errorf("pending snapshot has no tools")
 	}
-	p, err := WritePinFile(pinPath, "pin-1", snap.Pin.Tools)
-	if err != nil {
+	p := snap.Pin
+	p.Version = "pin-1"
+	if err := writeJSONFile(pinPath, p); err != nil {
 		return core.Pin{}, err
 	}
 	_ = os.Remove(pendingPath)
@@ -249,7 +265,14 @@ func ListToolsFromServer(ctx context.Context, start StartFunc) ([]core.ToolDef, 
 
 // ApproveFromServer lists live tools and writes a 0600 pin (CLI / non-TTY).
 func ApproveFromServer(ctx context.Context, pinPath string, start StartFunc) (core.Pin, error) {
-	if pinPath == "" {
+	return ApproveFromServerConfig(ctx, Config{PinPath: pinPath}, start)
+}
+
+// ApproveFromServerConfig is ApproveFromServer plus #21 pin identity
+// (argv after `--` and inventory env). Needed so a later toolsets /
+// argv change is config_or_inventory_changed, not tools_list_drift.
+func ApproveFromServerConfig(ctx context.Context, cfg Config, start StartFunc) (core.Pin, error) {
+	if cfg.PinPath == "" {
 		return core.Pin{}, fmt.Errorf("pin path required")
 	}
 	tools, err := ListToolsFromServer(ctx, start)
@@ -259,11 +282,11 @@ func ApproveFromServer(ctx context.Context, pinPath string, start StartFunc) (co
 	if len(tools) == 0 {
 		return core.Pin{}, fmt.Errorf("tools/list returned no tools")
 	}
-	p, err := WritePinFile(pinPath, "pin-1", tools)
+	p, err := WritePinFileWithConfig(cfg.PinPath, "pin-1", tools, ProcessIdentity(cfg))
 	if err != nil {
 		return core.Pin{}, err
 	}
-	_ = os.Remove(PendingPath(pinPath))
+	_ = os.Remove(PendingPath(cfg.PinPath))
 	return p, nil
 }
 

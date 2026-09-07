@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "/ABS/bin/deadbugz-guard",
+      "args": [
+        "--name", "github",
+        "--pin", "~/.deadbugz/pins/github.json",
+        "--",
+        "/ABS/github-mcp-server",
+        "--toolsets",
+        "repos,issues"
+      ],
+      "env": {
+        "DEADBUGZ_SERVER_NAME": "github",
+        "GITHUB_TOOLSETS": "repos,issues"
+      }
+    }
+  }
+}

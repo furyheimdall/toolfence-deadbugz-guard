@@ -112,4 +112,18 @@ func TestApproveCLIFromLiveServer(t *testing.T) {
 	if st.Mode().Perm() != 0o600 {
 		t.Fatalf("pin mode=%o", st.Mode().Perm())
 	}
+	raw, err := os.ReadFile(pin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var p struct {
+		Fingerprint string `json:"config_fingerprint"`
+		ServerName  string `json:"server_name"`
+	}
+	if err := json.Unmarshal(raw, &p); err != nil {
+		t.Fatal(err)
+	}
+	if p.Fingerprint == "" || p.ServerName != "filesystem" {
+		t.Fatalf("approve CLI must stamp #21 identity: %+v", p)
+	}
 }

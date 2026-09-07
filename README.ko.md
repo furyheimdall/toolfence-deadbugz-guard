@@ -130,6 +130,8 @@ compose 안에서도 `deadbugz-guard`는 primary wrap 형태를 씁니다: `dead
 
 Allow vs deny 그림: [docs/assets/smoke-allow-deny.svg](docs/assets/smoke-allow-deny.svg) · 다시 돌리는 방법: [docs/demo.md](docs/demo.md).
 
+Adoption CI (smoke G/H/I/J가 아님): `./scripts/verify-attach.sh`는 non-TTY approve로 Filesystem + Fetch를 pin하고, `./scripts/verify-github-toolsets.sh`는 GitHub `--toolsets` / `GITHUB_TOOLSETS` 변경이 `tools_list_drift`가 아니라 `config_or_inventory_changed`인지 확인합니다. [plugin guide §8](docs/plugin-guide.md#8-ci--scripted-attach-verify).
+
 ## MVP IN / OUT (고정)
 
 **IN:** Deadbugz triangle (hash-pin → `tools/list` diff → fail-closed re-approval) + sidecar/plugin으로서의 최소 HITL/audit만.
@@ -187,6 +189,7 @@ audit/    JSONL Auditor (#8)
 sidecar/  deadbugz-guard stdio wrap (uses core.Gate)
 cmd/deadbugz-guard
 cmd/mock-mcp-deadbugz
+cmd/mock-mcp-adopt
 cmd/hitl
 cmd/audit
 ```

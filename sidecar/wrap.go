@@ -24,7 +24,7 @@ func bindProcessConfig(g core.Gate, cfg Config) {
 	if !ok {
 		return
 	}
-	aware.SetConfig(core.NewConfigIdentity(cfg.ServerArgv, os.Environ()))
+	aware.SetConfig(ProcessIdentity(cfg))
 }
 
 const failClosedCode = -32003
@@ -354,7 +354,7 @@ func (w *Wrap) evaluateLive(live []core.ToolDef) core.GateDecision {
 			return dec
 		}
 	}
-	if err := WritePendingSnapshot(w.Cfg.PinPath, dec.ReasonCode, live, dec.Diff); err != nil {
+	if err := WritePendingSnapshotIdent(w.Cfg.PinPath, dec.ReasonCode, live, dec.Diff, ProcessIdentity(w.Cfg)); err != nil {
 		log.Printf("deadbugz-guard pending snapshot: %v", err)
 	}
 	return dec
