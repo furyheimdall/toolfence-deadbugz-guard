@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # FLIP_PATH smoke (atomic mv): benign allow, reorder allow, poison/add/remove deny,
 # deadbugz + call_gate=3 block after gate.
-# G/H (#32): headless re-approve + deny/timeout. I/J are other owners — do not add here.
+# G/H (#32): headless re-approve + deny/timeout.
+# I (#33): missing / tampered pin → PIN_MISSING on headless wrap.
+# J is another owner — do not add here.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -197,4 +199,90 @@ if [[ "$(pin_hash "$HS/pin.json")" != "$HS_OLD" ]]; then
 fi
 echo "PASS  H deny/timeout → old pin kept"
 
+# --- I: PIN_MISSING / pin tamper (headless wrap, #33 / parent #31) ---
+# Reuses G/H bins. Do not change G/H semantics; do not add J.
+# Headless wrap must not inherit a host approve grant.
+unset DEADBUGZ_APPROVE DEADBUGZ_APPROVE_FILE || true
+
+# mcpprobe -- <deadbugz-guard -- <mock>> : stdio wrap path from #7/#20.
+smoke_wrap_i() {
+  local pin="$1"
+  shift
+  env -u DEADBUGZ_APPROVE -u DEADBUGZ_APPROVE_FILE \
+    "$PROBE" --timeout 20s "$@" -- \
+    "$GUARD" --name smoke-i --pin "$pin" \
+      --audit "$WORKDIR/i-audit.jsonl" --hitl "http://127.0.0.1:9/hitl" --call-gate 3 -- \
+      "$MOCK"
+}
+
+echo "-- I: missing pin → PIN_MISSING (no silent re-pin)"
+PIN_MISSING="$WORKDIR/i/missing.json"
+rm -f "$PIN_MISSING" "${PIN_MISSING}.pending"
+mkdir -p "$(dirname "$PIN_MISSING")"
+if ! smoke_wrap_i "$PIN_MISSING" --expect-deny PIN_MISSING; then
+  echo "FAIL  I missing pin did not surface PIN_MISSING" >&2
+  exit 1
+fi
+if [[ -e "$PIN_MISSING" ]]; then
+  echo "FAIL  I wrap installed a pin without approve (silent re-pin)" >&2
+  exit 1
+fi
+echo "PASS  I missing pin → PIN_MISSING (no silent re-pin)"
+
+echo "-- I: tampered pin → PIN_MISSING (no auto-repair)"
+PIN_TAMPER="$WORKDIR/i/tamper.json"
+printf '%s' '{not-json' >"$PIN_TAMPER"
+chmod 600 "$PIN_TAMPER"
+if ! smoke_wrap_i "$PIN_TAMPER" --expect-deny PIN_MISSING; then
+  echo "FAIL  I tampered pin did not surface PIN_MISSING" >&2
+  exit 1
+fi
+if [[ "$(cat "$PIN_TAMPER")" != '{not-json' ]]; then
+  echo "FAIL  I wrap repaired a tampered pin" >&2
+  exit 1
+fi
+echo "PASS  I tampered pin → PIN_MISSING (no auto-repair)"
+
+echo "-- I: unreadable pin → PIN_MISSING (no auto-install)"
+PIN_UNREAD="$WORKDIR/i/unreadable.json"
+rm -f "$PIN_UNREAD" "${PIN_UNREAD}.pending"
+# Directory at the pin path is unreadable as a pin file (portable; root-safe).
+mkdir -p "$PIN_UNREAD"
+if ! smoke_wrap_i "$PIN_UNREAD" --expect-deny PIN_MISSING; then
+  echo "FAIL  I unreadable pin did not surface PIN_MISSING" >&2
+  exit 1
+fi
+if [[ ! -d "$PIN_UNREAD" ]]; then
+  echo "FAIL  I wrap replaced an unreadable pin path" >&2
+  exit 1
+fi
+rmdir "$PIN_UNREAD"
+echo "PASS  I unreadable pin → PIN_MISSING (no auto-install)"
+
+echo "-- I: explicit approve still required (#20)"
+PIN_APPROVE="$WORKDIR/i/approve.json"
+rm -f "$PIN_APPROVE" "${PIN_APPROVE}.pending"
+if ! smoke_wrap_i "$PIN_APPROVE" --expect-deny PIN_MISSING; then
+  echo "FAIL  I wrap without approve must stay PIN_MISSING" >&2
+  exit 1
+fi
+if [[ -e "$PIN_APPROVE" ]]; then
+  echo "FAIL  I wrap installed a pin without explicit approve" >&2
+  exit 1
+fi
+if ! "$GUARD" approve --name smoke-i --pin "$PIN_APPROVE" -- "$MOCK"; then
+  echo "FAIL  I explicit approve CLI" >&2
+  exit 1
+fi
+if [[ ! -f "$PIN_APPROVE" ]]; then
+  echo "FAIL  I approve did not write a pin" >&2
+  exit 1
+fi
+if ! smoke_wrap_i "$PIN_APPROVE" --expect-allow; then
+  echo "FAIL  I wrap after explicit approve should allow" >&2
+  exit 1
+fi
+echo "PASS  I explicit approve still required to install a pin"
+
+echo "PASS  I PIN_MISSING / pin tamper (headless wrap)"
 echo "ok"
