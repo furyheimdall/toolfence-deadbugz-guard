@@ -64,13 +64,11 @@ This is **not** a full stdio / multi-server gateway product (epic OUT).
 
 ## Mapping vs Pipelock
 
-Pipelock is the nearest public OSS peer: SHA-256 drift on `tools/list` against a session/pattern baseline.
+Pipelock is a full egress firewall with drift detect; Deadbugz is a thin durable-pin sidecar that fails closed until re-approval.
 
-Deadbugz guard watches the same listing path, but the contract is different: a **durable pin**, live **diff**, and **fail-closed HITL re-approval** when the menu changes.
+Pipelock is the nearest public OSS peer (~835★): a full **egress firewall** where SHA-256 drift detect and `action:ask` HITL are one feature among many — session/scan-oriented, with Pro pricing.
 
-A session scan is not a pin you must consciously re-approve.
-
-This pilot does not replace Pipelock as a scanner; it sits beside the host MCP path as a thin enforce sidecar.
+Deadbugz guard’s product spine is the **durable pin**: pin → live `tools/list` diff → **fail-closed until HITL re-approval**. It sits beside the host MCP path as a thin sidecar/plugin.
 
 ## Core loop
 

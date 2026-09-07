@@ -64,13 +64,11 @@ sidecar를 정적 바이너리 하나로 배포하고, 표준 라이브러리만
 
 ## Pipelock과 비교하면
 
-공개된 OSS 중에서 가장 가까운 peer는 Pipelock입니다. 세션/패턴 baseline에 대해 `tools/list`의 SHA-256 drift를 봅니다.
+Pipelock은 drift detect가 있는 전체 egress firewall입니다. Deadbugz는 재승인할 때까지 fail-closed로 막는 얇은 durable-pin sidecar입니다.
 
-Deadbugz guard도 같은 listing 경로를 지켜보지만, 계약이 다릅니다. **durable pin**, 실시간 **diff**, 그리고 메뉴가 바뀌면 **fail-closed HITL re-approval**입니다.
+공개된 OSS 중에서 가장 가까운 peer는 Pipelock입니다 (~835★). 전체 **egress firewall** 제품이고, SHA-256 drift detect와 `action:ask` HITL은 그중 기능 하나입니다. 세션/스캔 쪽에 가깝고, Pro 가격대가 있습니다.
 
-세션 스캔은, 사람이 의식적으로 다시 승인해야 하는 pin이 아닙니다.
-
-이 파일럿은 스캐너로서의 Pipelock을 대체하지 않습니다. host MCP 경로 옆에 붙는 얇은 enforce sidecar입니다.
+Deadbugz guard의 축은 **durable pin**입니다. pin → 현재 `tools/list` **diff** → **HITL re-approval 전까지 fail-closed**. host MCP 경로 옆에 붙는 얇은 sidecar/plugin입니다.
 
 ## 핵심 루프
 
