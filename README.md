@@ -90,14 +90,18 @@ go build -o bin/mock-mcp-deadbugz ./cmd/mock-mcp-deadbugz
 # write a pin from the benign fixture (uses core.PinTools)
 ./bin/deadbugz-guard --write-pin --pin testdata/pin.json --from-mode benign
 
+# non-TTY approve from a live server (no prompt; IDE spawn has no TTY)
+./bin/deadbugz-guard approve --name filesystem --pin ~/.deadbugz/pins/filesystem.json -- \
+  ./bin/mock-mcp-deadbugz
+
 # primary attach: stdio wrap
 ./bin/deadbugz-guard --pin testdata/pin.json --audit testdata/audit.jsonl \
   --hitl http://127.0.0.1:8765 --call-gate 3 -- ./bin/mock-mcp-deadbugz
 ```
 
-Host plugin shape (Cursor / Claude Desktop style) is in [`examples/plugin.json`](examples/plugin.json). One-pager: [plugin guide](docs/plugin-guide.md). Cursor 60s Filesystem + Fetch wrap: [plugin guide — Cursor 60-second CTA](docs/plugin-guide.md#cursor-60-second-cta).
+Host plugin shape (Cursor / Claude Desktop) is in [`examples/plugin.json`](examples/plugin.json) and [`examples/cursor.mcp.json`](examples/cursor.mcp.json). One-pager: [plugin guide](docs/plugin-guide.md) — project `.cursor/mcp.json` and user `~/.cursor/mcp.json`, Filesystem + Fetch wraps, absolute `PATH`, pin mode 0600, MCP Logs. Cursor 60s CTA: [plugin guide — Cursor 60-second CTA](docs/plugin-guide.md#cursor-60-second-cta).
 
-Flags / env: `--pin` / `PIN_PATH`, `--audit` / `AUDIT_PATH`, `--hitl` / `HITL_ENDPOINT`, `--call-gate` / `CALL_GATE` (Deadbugz path, default **3**).
+Flags / env: `--pin` / `PIN_PATH`, `--name` / `DEADBUGZ_SERVER_NAME`, `--approve` / `DEADBUGZ_APPROVE`, `--approve-file` / `DEADBUGZ_APPROVE_FILE`, `--audit` / `AUDIT_PATH`, `--hitl` / `HITL_ENDPOINT`, `--call-gate` / `CALL_GATE` (Deadbugz path, default **3**).
 
 ## Compose (beside)
 
@@ -151,7 +155,7 @@ If a change needs a full gateway, remote SIEM, or prompt-layer product, it is ou
 
 - [Landing](docs/landing.md) — positioning for the OSS pilot
 - [Launch note](docs/launch-note.md) — one-line position, Install/landing links, GitHub About paste
-- [Plugin guide](docs/plugin-guide.md) — Cursor / Claude Desktop wrap via `examples/plugin.json`; [Cursor 60s Filesystem + Fetch CTA](docs/plugin-guide.md#cursor-60-second-cta)
+- [Plugin guide](docs/plugin-guide.md) — Cursor `.cursor/mcp.json` / `~/.cursor/mcp.json` Filesystem + Fetch wrap, non-TTY approve; [60s CTA](docs/plugin-guide.md#cursor-60-second-cta)
 - [Flow diagram](#how-the-check-works) — Agent → Deadbugz guard → MCP server, allow vs deny ([SVG](docs/assets/flow-allow-deny.svg))
 - [Demo](docs/demo.md) — benign → allow vs poison → deny, plus smoke replay
 - [Security](SECURITY.md) — threat model for the MVP loop

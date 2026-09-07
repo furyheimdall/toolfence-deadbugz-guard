@@ -1,0 +1,32 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "/ABS/bin/deadbugz-guard",
+      "args": [
+        "--name", "filesystem",
+        "--pin", "~/.deadbugz/pins/filesystem.json",
+        "--",
+        "/ABS/npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/ABS/allowed-dir"
+      ],
+      "env": {
+        "DEADBUGZ_SERVER_NAME": "filesystem"
+      }
+    },
+    "fetch": {
+      "command": "/ABS/bin/deadbugz-guard",
+      "args": [
+        "--name", "fetch",
+        "--pin", "~/.deadbugz/pins/fetch.json",
+        "--",
+        "/ABS/uvx",
+        "mcp-server-fetch"
+      ],
+      "env": {
+        "DEADBUGZ_SERVER_NAME": "fetch"
+      }
+    }
+  }
+}
