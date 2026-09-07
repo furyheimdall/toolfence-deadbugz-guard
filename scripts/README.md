@@ -42,4 +42,14 @@ When a live launcher is missing, the script still runs wrap + non-TTY pin agains
 
 ### E1 seam
 
-This script stops at Filesystem + Fetch. GitHub official MCP toolsets / `config_or_inventory_changed` (#21) is a **separate** job — see the comment hook in `.github/workflows/ci.yml`. Do not add toolsets coverage here.
+This script stops at Filesystem + Fetch. GitHub official MCP toolsets / `config_or_inventory_changed` (#21) is a **separate** job — see `verify-github-toolsets` in `.github/workflows/ci.yml`. Do not add toolsets coverage here.
+
+## `verify-github-toolsets.sh` (E1 / #23)
+
+Intentional GitHub MCP inventory change (`--toolsets` / `--tools` / `GITHUB_TOOLSETS`) must surface `config_or_inventory_changed`, not silent `tools_list_drift`. Uses `mock-mcp-deadbugz` under the official attach shape. No `GITHUB_PERSONAL_ACCESS_TOKEN`.
+
+```bash
+./scripts/verify-github-toolsets.sh
+```
+
+Live `github-mcp-server` is a documented SKIP unless `DEADBUGZ_LIVE_GITHUB_MCP=1` plus a token / `DEADBUGZ_GITHUB_MCP_BIN`. Details: [docs/github-toolsets.md](../docs/github-toolsets.md).

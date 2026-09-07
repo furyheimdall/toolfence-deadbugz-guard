@@ -301,4 +301,6 @@ Scripted, no-TTY check that the Cursor launchers attach and pin:
 ./scripts/verify-filesystem-fetch.sh
 ```
 
-Uses `deadbugz-guard approve` / `--approve` / `--approve-file`, asserts pin mode `0600`, and a later `tools/list` allow when unchanged. CI runs the same job (`verify-filesystem-fetch` in `.github/workflows/ci.yml`). Local skip gates and the E1 toolsets hook: [scripts/README.md](../scripts/README.md). GitHub official MCP toolsets CI is E1's half of #23 — not this script.
+Uses `deadbugz-guard approve` / `--approve` / `--approve-file`, asserts pin mode `0600`, and a later `tools/list` allow when unchanged. CI runs the same job (`verify-filesystem-fetch` in `.github/workflows/ci.yml`). Local skip gates: [scripts/README.md](../scripts/README.md).
+
+GitHub official MCP toolsets / `config_or_inventory_changed` is the E1 half of #23: [docs/github-toolsets.md](github-toolsets.md) and `./scripts/verify-github-toolsets.sh`. Not this script.

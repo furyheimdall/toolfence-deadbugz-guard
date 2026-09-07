@@ -24,7 +24,25 @@ func bindProcessConfig(g core.Gate, cfg Config) {
 	if !ok {
 		return
 	}
-	aware.SetConfig(core.NewConfigIdentity(cfg.ServerArgv, os.Environ()))
+	aware.SetConfig(processIdentity(cfg))
+}
+
+// processIdentity is the #21 fingerprint input for a wrap/approve process.
+// ServerArgv empty → no identity (legacy tools-only pins). ServerEnv nil
+// → os.Environ(), then SubsetEnv drops tokens.
+func processIdentity(cfg Config) core.ConfigIdentity {
+	if len(cfg.ServerArgv) == 0 {
+		return core.ConfigIdentity{}
+	}
+	environ := cfg.ServerEnv
+	if environ == nil {
+		environ = os.Environ()
+	}
+	ident := core.NewConfigIdentity(cfg.ServerArgv, environ)
+	if cfg.ServerName != "" {
+		ident.ServerName = cfg.ServerName
+	}
+	return ident
 }
 
 const failClosedCode = -32003
@@ -354,7 +372,7 @@ func (w *Wrap) evaluateLive(live []core.ToolDef) core.GateDecision {
 			return dec
 		}
 	}
-	if err := WritePendingSnapshot(w.Cfg.PinPath, dec.ReasonCode, live, dec.Diff); err != nil {
+	if err := WritePendingSnapshotWithConfig(w.Cfg.PinPath, dec.ReasonCode, live, dec.Diff, processIdentity(w.Cfg)); err != nil {
 		log.Printf("deadbugz-guard pending snapshot: %v", err)
 	}
 	return dec
