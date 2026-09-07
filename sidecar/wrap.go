@@ -16,6 +16,17 @@ import (
 	"github.com/furyheimdall/toolfence-deadbugz-guard/sidecar/mcpio"
 )
 
+func bindProcessConfig(g core.Gate, cfg Config) {
+	if g == nil || len(cfg.ServerArgv) == 0 {
+		return
+	}
+	aware, ok := g.(core.ConfigAware)
+	if !ok {
+		return
+	}
+	aware.SetConfig(core.NewConfigIdentity(cfg.ServerArgv, os.Environ()))
+}
+
 const failClosedCode = -32003
 
 // StartFunc starts the downstream MCP server and returns its stdio pipes.
@@ -64,6 +75,7 @@ func Run(ctx context.Context, cfg Config, clientIn io.Reader, clientOut io.Write
 	if g == nil {
 		g = GateFromPinFile(cfg.PinPath)
 	}
+	bindProcessConfig(g, cfg)
 	stdin, stdout, wait, err := start()
 	if err != nil {
 		return err

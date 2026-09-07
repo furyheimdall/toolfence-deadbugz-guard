@@ -12,7 +12,8 @@
 //   - ToolDiffSummary { added, removed, changed, pin_revision, live_hash, pin_hash }
 //   - GateDecision = Allow{pin_revision} | Deny{reason_code, diff}
 //   - ReasonCode: OK | DIFF_NONEMPTY | APPROVAL_DENIED | APPROVAL_PENDING |
-//     PIN_MISSING | INTERNAL_ERROR
+//     PIN_MISSING | INTERNAL_ERROR | config_or_inventory_changed |
+//     tools_list_drift (#21)
 //   - Evaluate(live) / ApplyApproval(pin_revision, approve|deny)
 //   - Approver.RequestApproval(ctx, diff, candidate Pin)
 //   - Auditor.Record(event, fields) — approved/denied include who/when/oldHash/newHash
@@ -24,4 +25,11 @@
 // description + inputSchema (+ annotations). Evaluate never writes a pin.
 // Missing or tampered pin is PIN_MISSING. Silent re-pin is forbidden:
 // only InstallInitialPin (first pin) or ApplyApproval(approve) persist.
+//
+// Issue #21: config_fingerprint = hash(stable(argv after --) || subset(env)).
+// pin_id = hash(server_name || config_fingerprint || canonical_tools_hash).
+// Same fingerprint + live tools/list mutate → tools_list_drift (never
+// auto-promote). Fingerprint / toolsets / argv / env / credential-scope
+// change → config_or_inventory_changed (re-approval even if an old tools
+// hash matches). Reorder-only under the same fingerprint still Allows.
 package core

@@ -45,8 +45,10 @@ func (h *Hook) record(event string, fields map[string]any) {
 	h.Auditor.Record(event, fields)
 }
 
-// Evaluate runs the fail-closed gate. On DIFF_NONEMPTY it blocks, requests
+// Evaluate runs the fail-closed gate. On DIFF_NONEMPTY,
+// config_or_inventory_changed, or tools_list_drift it blocks, requests
 // HITL, and ApplyApproval(approve|deny) — timeout is deny (Chief H).
+// tools_list_drift never auto-promotes (Evaluate still does not write).
 func (h *Hook) Evaluate(ctx context.Context, live []core.ToolDef) core.GateDecision {
 	if h.Gate == nil {
 		return core.Deny(core.ReasonInternalError, nil)
@@ -59,12 +61,25 @@ func (h *Hook) Evaluate(ctx context.Context, live []core.ToolDef) core.GateDecis
 		h.recordBlocked(d)
 		return d
 	}
-	if d.ReasonCode == core.ReasonDiffNonempty && d.Diff != nil {
+	if d.ReasonCode.RequiresApproval() {
 		cand := h.Gate.PendingCandidate()
 		if cand == nil {
 			return core.Deny(core.ReasonInternalError, d.Diff)
 		}
-		return h.RequestAndApply(ctx, *d.Diff, *cand)
+		diff := d.Diff
+		if diff == nil {
+			tmp := core.ToolDiffSummary{
+				PinRevision: cand.Version,
+				LiveHash:    cand.Aggregate,
+				ReasonCode:  d.ReasonCode,
+			}
+			if p := h.Gate.CurrentPin(); p != nil {
+				tmp.PinHash = p.Aggregate
+				tmp.PinRevision = p.Version
+			}
+			diff = &tmp
+		}
+		return h.RequestAndApply(ctx, *diff, *cand)
 	}
 	h.recordBlocked(d)
 	return d
@@ -83,7 +98,7 @@ func (h *Hook) RequestAndApply(ctx context.Context, diff core.ToolDiffSummary, c
 		oldRev = p.Version
 	}
 
-	h.record("diff_detected", diffFields(h.now(), diff, oldHash, candidate.Aggregate, oldRev, ""))
+	h.record("diff_detected", diffFields(h.now(), diff, oldHash, candidate.Aggregate, oldRev, "", approvalReason(diff)))
 	h.recordBlockedDecision(diff, oldHash, oldRev)
 
 	if h.Approver == nil {
@@ -173,7 +188,17 @@ func (h *Hook) recordDenied(diff core.ToolDiffSummary, oldHash, rev, decision st
 	})
 }
 
-func diffFields(when time.Time, diff core.ToolDiffSummary, oldHash, liveHash, rev, who string) map[string]any {
+func approvalReason(diff core.ToolDiffSummary) core.ReasonCode {
+	if diff.ReasonCode != "" {
+		return diff.ReasonCode
+	}
+	return core.ReasonDiffNonempty
+}
+
+func diffFields(when time.Time, diff core.ToolDiffSummary, oldHash, liveHash, rev, who string, reason core.ReasonCode) map[string]any {
+	if reason == "" {
+		reason = approvalReason(diff)
+	}
 	return map[string]any{
 		"when":         when.Format(time.RFC3339Nano),
 		"who":          who,
@@ -185,7 +210,7 @@ func diffFields(when time.Time, diff core.ToolDiffSummary, oldHash, liveHash, re
 		"added":        append([]string(nil), diff.Added...),
 		"removed":      append([]string(nil), diff.Removed...),
 		"changed":      append([]string(nil), diff.Changed...),
-		"reason_code":  string(core.ReasonDiffNonempty),
+		"reason_code":  string(reason),
 		"decision":     "deny",
 	}
 }

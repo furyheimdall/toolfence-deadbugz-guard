@@ -13,10 +13,21 @@ import (
 
 // WritePinFile hashes tools with core.PinTools and writes a core.Pin JSON file.
 func WritePinFile(path, version string, tools []core.ToolDef) (core.Pin, error) {
+	return WritePinFileWithConfig(path, version, tools, core.ConfigIdentity{})
+}
+
+// WritePinFileWithConfig is WritePinFile plus #21 pin identity when cfg
+// has argv or an explicit server name.
+func WritePinFileWithConfig(path, version string, tools []core.ToolDef, cfg core.ConfigIdentity) (core.Pin, error) {
 	if version == "" {
 		version = "smoke-1"
 	}
-	p := core.PinTools(tools, version)
+	var p core.Pin
+	if cfg.ServerName != "" || len(cfg.Argv) > 0 || len(cfg.Env) > 0 {
+		p = core.PinToolsWithConfig(tools, version, cfg)
+	} else {
+		p = core.PinTools(tools, version)
+	}
 	b, err := json.MarshalIndent(p, "", "  ")
 	if err != nil {
 		return core.Pin{}, err
