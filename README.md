@@ -62,9 +62,15 @@ Chosen so the sidecar ships as one static binary, speaks stdio with the standard
 
 This is **not** a full stdio / multi-server gateway product (epic OUT).
 
-## Mapping vs AGT
+## Mapping vs Pipelock
 
-AGT is the nearest public OSS *pattern*: a process that sits next to a tool server and observes the listing path. This pilot copies that **boundary** only (wrap vs target). It does not copy AGT source, names, or proprietary structure.
+Pipelock is the nearest public OSS peer: SHA-256 drift on `tools/list` against a session/pattern baseline.
+
+Deadbugz guard watches the same listing path, but the contract is different: a **durable pin**, live **diff**, and **fail-closed HITL re-approval** when the menu changes.
+
+A session scan is not a pin you must consciously re-approve.
+
+This pilot does not replace Pipelock as a scanner; it sits beside the host MCP path as a thin enforce sidecar.
 
 ## Core loop
 

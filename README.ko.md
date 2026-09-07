@@ -62,9 +62,15 @@ sidecar를 정적 바이너리 하나로 배포하고, 표준 라이브러리만
 
 전체 stdio / 멀티서버 gateway 제품이 **아닙니다** (epic OUT).
 
-## AGT와 비교하면
+## Pipelock과 비교하면
 
-AGT는 공개된 OSS 중에서 가장 가까운 *패턴*입니다. tool server 옆에 붙어서 listing 경로를 지켜보는 프로세스죠. 이 파일럿이 가져오는 건 그 **경계**뿐입니다 (wrap vs target). AGT 소스, 이름, 독자 구조는 가져오지 않습니다.
+공개된 OSS 중에서 가장 가까운 peer는 Pipelock입니다. 세션/패턴 baseline에 대해 `tools/list`의 SHA-256 drift를 봅니다.
+
+Deadbugz guard도 같은 listing 경로를 지켜보지만, 계약이 다릅니다. **durable pin**, 실시간 **diff**, 그리고 메뉴가 바뀌면 **fail-closed HITL re-approval**입니다.
+
+세션 스캔은, 사람이 의식적으로 다시 승인해야 하는 pin이 아닙니다.
+
+이 파일럿은 스캐너로서의 Pipelock을 대체하지 않습니다. host MCP 경로 옆에 붙는 얇은 enforce sidecar입니다.
 
 ## 핵심 루프
 
