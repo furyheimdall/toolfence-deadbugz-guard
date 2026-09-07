@@ -73,10 +73,10 @@ Deadbugz guard's product spine is the **durable pin**: pin → live `tools/list`
 ## Core loop
 
 1. **Hash-pin** approved MCP tool definitions.
-2. **Diff** the live `tools/list` against that pin on every listing.
+2. **Diff** the live `tools/list` against that pin on every listing — hashed **before** the host sees the list, including a guard-owned refresh after `list_changed`.
 3. On mismatch → **fail closed** and require **re-approval** before the new definitions are trusted.
 
-HITL and audit exist only to support that re-approval path.
+HITL and audit exist only to support that re-approval path. Host `list_changed` / deferred-tool refresh (and Claude Code bugs around them) are **not** a security boundary; see [SECURITY.md](SECURITY.md#host-list_changed-is-not-a-security-boundary).
 
 ## Install
 
@@ -95,7 +95,7 @@ go build -o bin/mock-mcp-deadbugz ./cmd/mock-mcp-deadbugz
   --hitl http://127.0.0.1:8765 --call-gate 3 -- ./bin/mock-mcp-deadbugz
 ```
 
-Host plugin shape (Cursor / Claude Desktop style) is in [`examples/plugin.json`](examples/plugin.json). One-pager: [plugin guide](docs/plugin-guide.md).
+Host plugin shape (Cursor / Claude Desktop style) is in [`examples/plugin.json`](examples/plugin.json). One-pager: [plugin guide](docs/plugin-guide.md). Cursor 60s Filesystem + Fetch wrap: [plugin guide — Cursor 60-second CTA](docs/plugin-guide.md#cursor-60-second-cta).
 
 Flags / env: `--pin` / `PIN_PATH`, `--audit` / `AUDIT_PATH`, `--hitl` / `HITL_ENDPOINT`, `--call-gate` / `CALL_GATE` (Deadbugz path, default **3**).
 
@@ -151,7 +151,7 @@ If a change needs a full gateway, remote SIEM, or prompt-layer product, it is ou
 
 - [Landing](docs/landing.md) — positioning for the OSS pilot
 - [Launch note](docs/launch-note.md) — one-line position, Install/landing links, GitHub About paste
-- [Plugin guide](docs/plugin-guide.md) — Cursor / Claude Desktop wrap via `examples/plugin.json`
+- [Plugin guide](docs/plugin-guide.md) — Cursor / Claude Desktop wrap via `examples/plugin.json`; [Cursor 60s Filesystem + Fetch CTA](docs/plugin-guide.md#cursor-60-second-cta)
 - [Flow diagram](#how-the-check-works) — Agent → Deadbugz guard → MCP server, allow vs deny ([SVG](docs/assets/flow-allow-deny.svg))
 - [Demo](docs/demo.md) — benign → allow vs poison → deny, plus smoke replay
 - [Security](SECURITY.md) — threat model for the MVP loop

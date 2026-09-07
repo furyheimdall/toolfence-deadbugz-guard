@@ -105,6 +105,12 @@ type rpcClient struct {
 
 func startStack(t *testing.T, initial string) (*rpcClient, string, func()) {
 	t.Helper()
+	cli, flip, _, stop := startStackNotify(t, initial)
+	return cli, flip, stop
+}
+
+func startStackNotify(t *testing.T, initial string) (*rpcClient, string, chan struct{}, func()) {
+	t.Helper()
 	dir := t.TempDir()
 	flip := filepath.Join(dir, "flip.json")
 	atomicFlip(t, flip, initial)
@@ -117,12 +123,13 @@ func startStack(t *testing.T, initial string) (*rpcClient, string, func()) {
 	wrapServerOut, mockOut := io.Pipe()
 	guardStdin, cliToGuard := io.Pipe()
 	cliFromGuard, guardStdout := io.Pipe()
+	notify := make(chan struct{}, 4)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		_ = mockmcp.Serve(mockIn, mockOut, flip)
+		_ = mockmcp.ServeWithNotify(mockIn, mockOut, flip, notify)
 	}()
 	go func() {
 		_ = Run(ctx, Config{
@@ -145,8 +152,9 @@ func startStack(t *testing.T, initial string) (*rpcClient, string, func()) {
 		t.Fatalf("initialize: %s", string(init.Error))
 	}
 
-	return cli, flip, func() {
+	return cli, flip, notify, func() {
 		cancel()
+		close(notify)
 		_ = cliToGuard.Close()
 		_ = guardStdin.Close()
 		_ = mockIn.Close()
@@ -196,31 +204,41 @@ func mustRPC(t *testing.T, cli *rpcClient, id int, method string, params any) mc
 	if _, err := cli.in.Write(append(b, '\n')); err != nil {
 		t.Fatal(err)
 	}
+	return readRPCReply(t, cli, method)
+}
+
+func readRPCReply(t *testing.T, cli *rpcClient, label string) mcpio.Message {
+	t.Helper()
 	deadline := time.After(5 * time.Second)
-	type result struct {
-		raw []byte
-		err error
-	}
-	ch := make(chan result, 1)
-	go func() {
-		raw, err := mcpio.ReadMessage(cli.out)
-		ch <- result{raw, err}
-	}()
-	var raw []byte
-	select {
-	case r := <-ch:
-		if r.err != nil {
-			t.Fatal(r.err)
+	for {
+		type result struct {
+			raw []byte
+			err error
 		}
-		raw = r.raw
-	case <-deadline:
-		t.Fatal("timeout waiting for " + method)
+		ch := make(chan result, 1)
+		go func() {
+			raw, err := mcpio.ReadMessage(cli.out)
+			ch <- result{raw, err}
+		}()
+		var raw []byte
+		select {
+		case r := <-ch:
+			if r.err != nil {
+				t.Fatal(r.err)
+			}
+			raw = r.raw
+		case <-deadline:
+			t.Fatal("timeout waiting for " + label)
+		}
+		var msg mcpio.Message
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatal(err)
+		}
+		if isListChangedMethod(msg.Method) {
+			continue
+		}
+		return msg
 	}
-	var msg mcpio.Message
-	if err := json.Unmarshal(raw, &msg); err != nil {
-		t.Fatal(err)
-	}
-	return msg
 }
 
 func rpcErrorData(t *testing.T, raw json.RawMessage) map[string]any {

@@ -73,10 +73,10 @@ Deadbugz guard의 축은 **durable pin**입니다. pin → 현재 `tools/list` *
 ## 핵심 루프
 
 1. 승인한 MCP tool 정의를 **hash-pin**합니다.
-2. listing이 올 때마다 현재 `tools/list`를 그 pin과 **diff**합니다.
+2. listing이 올 때마다 현재 `tools/list`를 그 pin과 **diff**합니다. host가 목록을 보기 **전에** 해시하고, `list_changed` 뒤의 guard 자체 refresh도 같은 검사를 합니다.
 3. 맞지 않으면 → **fail closed**하고, 새 정의를 믿기 전에 **재승인(re-approval)**을 요구합니다.
 
-HITL과 audit는 그 재승인 경로를 받쳐 주기 위해서만 있습니다.
+HITL과 audit는 그 재승인 경로를 받쳐 주기 위해서만 있습니다. host의 `list_changed` / deferred-tool refresh(그리고 그걸 잘못 다루는 Claude Code 버그)는 보안 경계가 **아닙니다**. [SECURITY.md](SECURITY.md#host-list_changed-is-not-a-security-boundary)를 보세요.
 
 ## 설치
 
@@ -95,7 +95,7 @@ go build -o bin/mock-mcp-deadbugz ./cmd/mock-mcp-deadbugz
   --hitl http://127.0.0.1:8765 --call-gate 3 -- ./bin/mock-mcp-deadbugz
 ```
 
-host plugin 형태 (Cursor / Claude Desktop 스타일)는 [`examples/plugin.json`](examples/plugin.json)에 있습니다. 한 장짜리: [plugin guide](docs/plugin-guide.md).
+host plugin 형태 (Cursor / Claude Desktop 스타일)는 [`examples/plugin.json`](examples/plugin.json)에 있습니다. 한 장짜리: [plugin guide](docs/plugin-guide.md). Cursor에서 Filesystem + Fetch를 60초 안에 wrap하려면: [plugin guide — Cursor 60-second CTA](docs/plugin-guide.md#cursor-60-second-cta).
 
 Flags / env: `--pin` / `PIN_PATH`, `--audit` / `AUDIT_PATH`, `--hitl` / `HITL_ENDPOINT`, `--call-gate` / `CALL_GATE` (Deadbugz path, default **3**).
 
@@ -151,7 +151,7 @@ Deadbugz guard는 **얇은 sidecar/plugin**입니다. 제품 카테고리를 바
 
 - [Landing](docs/landing.md) — OSS 파일럿 포지셔닝
 - [Launch note](docs/launch-note.md) — 한 줄 포지션, 설치/랜딩 링크, GitHub About에 붙여 넣을 문구
-- [Plugin guide](docs/plugin-guide.md) — `examples/plugin.json`으로 Cursor / Claude Desktop wrap
+- [Plugin guide](docs/plugin-guide.md) — `examples/plugin.json`으로 Cursor / Claude Desktop wrap. [Cursor 60초 Filesystem + Fetch CTA](docs/plugin-guide.md#cursor-60-second-cta)
 - [흐름도](#검사는-이렇게-돌아갑니다) — Agent → Deadbugz guard → MCP server, allow vs deny ([SVG](docs/assets/flow-allow-deny.svg))
 - [Demo](docs/demo.md) — benign → allow vs poison → deny, 그리고 스모크 replay
 - [Security](SECURITY.md) — MVP 루프의 threat model
