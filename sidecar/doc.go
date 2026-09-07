@@ -4,8 +4,10 @@
 //
 //	deadbugz-guard -- <server>
 //
-// The wrap observes tools/list against a pin and, when call_gate=3,
-// evaluates the Deadbugz path (pin → diff → call gate) before tools/call.
+// The wrap hashes/diffs every tools/list (including a guard-owned refresh
+// after notifications/tools/list_changed) before the host sees the listing.
+// Host list_changed / deferred-tool refresh is not a security boundary.
+// When call_gate=3, the same pin → diff path runs before tools/call.
 //
 // It uses the merged #12 core.Gate / MemoryGate / PinTools types.
 // Do not redefine those seats here.

@@ -73,10 +73,10 @@ Deadbugz guard의 축은 **durable pin**입니다. pin → 현재 `tools/list` *
 ## 핵심 루프
 
 1. 승인한 MCP tool 정의를 **hash-pin**합니다.
-2. listing이 올 때마다 현재 `tools/list`를 그 pin과 **diff**합니다.
+2. listing이 올 때마다 현재 `tools/list`를 그 pin과 **diff**합니다. host가 목록을 보기 **전에** 해시하고, `list_changed` 뒤의 guard 자체 refresh도 같은 검사를 합니다.
 3. 맞지 않으면 → **fail closed**하고, 새 정의를 믿기 전에 **재승인(re-approval)**을 요구합니다.
 
-HITL과 audit는 그 재승인 경로를 받쳐 주기 위해서만 있습니다.
+HITL과 audit는 그 재승인 경로를 받쳐 주기 위해서만 있습니다. host의 `list_changed` / deferred-tool refresh(그리고 그걸 잘못 다루는 Claude Code 버그)는 보안 경계가 **아닙니다**. [SECURITY.md](SECURITY.md#host-list_changed-is-not-a-security-boundary)를 보세요.
 
 ## 설치
 

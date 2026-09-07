@@ -12,6 +12,12 @@ import (
 // Serve reads MCP JSON-RPC from in and writes responses to out.
 // Mode is FLIP_PATH (atomic file) or MODE, default benign.
 func Serve(in io.Reader, out io.Writer, flipPath string) error {
+	return ServeWithNotify(in, out, flipPath, nil)
+}
+
+// ServeWithNotify is Serve plus an optional channel that emits
+// notifications/tools/list_changed (test hook for #22).
+func ServeWithNotify(in io.Reader, out io.Writer, flipPath string, notify <-chan struct{}) error {
 	r := bufio.NewReader(in)
 	w := mcpio.NewWriter(out)
 	var mu sync.Mutex
@@ -19,6 +25,17 @@ func Serve(in io.Reader, out io.Writer, flipPath string) error {
 		mu.Lock()
 		defer mu.Unlock()
 		return w.WriteJSON(v)
+	}
+
+	if notify != nil {
+		go func() {
+			for range notify {
+				_ = write(mcpio.Message{
+					JSONRPC: "2.0",
+					Method:  "notifications/tools/list_changed",
+				})
+			}
+		}()
 	}
 
 	for {
