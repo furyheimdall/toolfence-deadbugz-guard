@@ -125,6 +125,7 @@ docker compose up --build
 | **poison** | **deny** (fail-closed) |
 | **add** / **remove** | **fail-closed** |
 | **deadbugz** + **`call_gate=3`** | block `tools/call` after gate |
+| **J** concurrent in-flight poisoned `tools/list` | subsequent `tools/call` **denied** |
 
 `FLIP_PATH` is a JSON state file `{ "mode": "benign\|poison\|add\|remove\|reorder\|deadbugz", "call_gate": 3 }`. Mode changes use **atomic `mv` only** (`WriteFlip`: temp write → rename). Example: [`testdata/flip.json`](testdata/flip.json).
 

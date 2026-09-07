@@ -3,7 +3,7 @@
 # deadbugz + call_gate=3 block after gate.
 # G/H (#32): headless re-approve + deny/timeout.
 # I (#33): missing / tampered pin → PIN_MISSING on headless wrap.
-# J is another owner — do not add here.
+# J (#34): mid-session in-flight poisoned tools/list → subsequent calls denied.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -285,4 +285,18 @@ fi
 echo "PASS  I explicit approve still required to install a pin"
 
 echo "PASS  I PIN_MISSING / pin tamper (headless wrap)"
+
+# --- J E2E (#34): in-flight poisoned tools/list under an already-pinned wrap ---
+echo "-- J build"
+SMOKEJ="$WORKDIR/smokej"
+go build -o "$SMOKEJ" ./scripts/smokej
+JDIR="$WORKDIR/j"
+mkdir -p "$JDIR"
+JFLIP="$JDIR/flip.json"
+JPIN="$JDIR/pin.json"
+write_flip "$JFLIP" benign
+"$GUARD" --write-pin --pin "$JPIN" --from-mode benign
+"$SMOKEJ" --timeout 20s --guard "$GUARD" --mock "$MOCK" --pin "$JPIN" --flip "$JFLIP"
+echo "PASS  J concurrent poisoned tools/list → subsequent calls denied"
+
 echo "ok"

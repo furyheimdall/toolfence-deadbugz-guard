@@ -34,3 +34,18 @@ func TestParseFlipKeyValue(t *testing.T) {
 		t.Fatalf("got %+v ok=%v", st, ok)
 	}
 }
+
+func TestParseFlipListHold(t *testing.T) {
+	st, ok := parseFlip([]byte(`{"mode":"benign","call_gate":3,"list_hold":true}`))
+	if !ok || st.Mode != ModeBenign || !st.ListHold {
+		t.Fatalf("json list_hold: %+v ok=%v", st, ok)
+	}
+	st, ok = parseFlip([]byte("mode=benign\ncall_gate=3\nlist_hold=true\n"))
+	if !ok || !st.ListHold {
+		t.Fatalf("kv list_hold: %+v ok=%v", st, ok)
+	}
+	st, ok = parseFlip([]byte(`{"mode":"poison","call_gate":3}`))
+	if !ok || st.ListHold {
+		t.Fatalf("default list_hold must be false: %+v ok=%v", st, ok)
+	}
+}

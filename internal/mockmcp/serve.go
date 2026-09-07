@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"encoding/json"
 	"io"
+	"os"
 	"sync"
+	"time"
 
 	"github.com/furyheimdall/toolfence-deadbugz-guard/sidecar/mcpio"
 )
@@ -66,6 +68,9 @@ func ServeWithNotify(in io.Reader, out io.Writer, flipPath string, notify <-chan
 				}),
 			})
 		case "tools/list":
+			// Re-read after ListHold so a mid-flight FLIP_PATH poison
+			// is what the wrap hashes (smoke J / #34). No host list_changed.
+			st = waitListHold(flipPath)
 			_ = write(mcpio.Message{
 				JSONRPC: "2.0",
 				ID:      msg.ID,
@@ -98,4 +103,27 @@ func mustJSON(v any) json.RawMessage {
 		panic(err)
 	}
 	return b
+}
+
+// waitListHold blocks while FlipState.ListHold is set, then returns the
+// current flip. A .held marker lets smoke J flip poison mid-flight.
+func waitListHold(flipPath string) FlipState {
+	st := ReadFlip(flipPath)
+	if !st.ListHold {
+		return st
+	}
+	held := HeldPath(flipPath)
+	if held != "" {
+		_ = os.WriteFile(held, []byte("1\n"), 0o600)
+		defer os.Remove(held)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+		st = ReadFlip(flipPath)
+		if !st.ListHold {
+			return st
+		}
+	}
+	return ReadFlip(flipPath)
 }
