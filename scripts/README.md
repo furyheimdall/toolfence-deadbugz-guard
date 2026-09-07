@@ -4,9 +4,13 @@
 
 Fixture loop against `mock-mcp-deadbugz` (benign allow / poison deny). Not a live host attach.
 
+A–F stay the existing sidecar/mockmcp tests. **G/H** (#32) are headless E2E in this script: wrap `--approve-file` after a nonempty `FLIP_PATH` diff, plus HITL hook/stub deny and timeout. I/J belong to other owners — do not add them here.
+
 ```bash
 ./scripts/smoke.sh
 ```
+
+`scripts/smokehitl` is a CI helper for the HITL hook pin/audit path. It is not a product command.
 
 ## `verify-filesystem-fetch.sh` (E3 / #23)
 

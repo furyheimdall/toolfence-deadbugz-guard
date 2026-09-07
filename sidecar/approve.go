@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/furyheimdall/toolfence-deadbugz-guard/audit"
 	"github.com/furyheimdall/toolfence-deadbugz-guard/core"
 	"github.com/furyheimdall/toolfence-deadbugz-guard/sidecar/mcpio"
 )
@@ -137,6 +138,7 @@ func ApplyNonTTYApprove(cfg Config, reason core.ReasonCode, live []core.ToolDef)
 		return core.Pin{}, false, fmt.Errorf("pin path required for approve")
 	}
 	state := InspectPinFile(cfg.PinPath)
+	oldHash := pinFileHash(cfg.PinPath)
 	ok, consume := allowNonTTYApprove(cfg, reason, state)
 	if !ok {
 		return core.Pin{}, false, nil
@@ -149,7 +151,43 @@ func ApplyNonTTYApprove(cfg Config, reason core.ReasonCode, live []core.ToolDef)
 		consumeFile(cfg.ApproveFile)
 	}
 	_ = os.Remove(PendingPath(cfg.PinPath))
+	// G: approve-file re-pin after a nonempty diff records who/when/oldHash/newHash.
+	// First-pin bootstrap (PIN_MISSING) is I, not this event.
+	if oldHash != "" && reason.RequiresApproval() {
+		recordHeadlessReapprove(cfg, oldHash, p)
+	}
 	return p, true, nil
+}
+
+func pinFileHash(path string) string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	var p core.Pin
+	if json.Unmarshal(b, &p) != nil {
+		return ""
+	}
+	return p.Aggregate
+}
+
+// recordHeadlessReapprove is the #8 approved line for wrap --approve-file (no TTY).
+func recordHeadlessReapprove(cfg Config, oldHash string, p core.Pin) {
+	if cfg.AuditPath == "" {
+		return
+	}
+	who := "local"
+	if cfg.ApproveFile != "" {
+		who = "approve-file"
+	}
+	audit.NewJSONLAuditor(cfg.AuditPath).Record(audit.EventApproved, map[string]any{
+		"who":         who,
+		"when":        time.Now().UTC().Format(time.RFC3339Nano),
+		"oldHash":     oldHash,
+		"newHash":     p.Aggregate,
+		"decision":    "approve",
+		"reason_code": string(core.ReasonOK),
+	})
 }
 
 // PendingSnapshot is the fail-closed live catalog for `deadbugz-guard approve`.
