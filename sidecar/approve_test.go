@@ -15,6 +15,31 @@ import (
 	"github.com/furyheimdall/toolfence-deadbugz-guard/internal/mockmcp"
 )
 
+func TestGateFromPinFileTamperIsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	missing := filepath.Join(dir, "missing.json")
+	g := GateFromPinFile(missing)
+	if d := g.Evaluate(context.Background(), mockmcp.Tools(mockmcp.ModeBenign)); d.Allowed || d.ReasonCode != core.ReasonPinMissing {
+		t.Fatalf("missing: %+v", d)
+	}
+	if _, err := os.Stat(missing); !os.IsNotExist(err) {
+		t.Fatal("GateFromPinFile must not create a missing pin")
+	}
+
+	bad := filepath.Join(dir, "bad.json")
+	if err := os.WriteFile(bad, []byte("{not-json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	g = GateFromPinFile(bad)
+	if d := g.Evaluate(context.Background(), mockmcp.Tools(mockmcp.ModeBenign)); d.Allowed || d.ReasonCode != core.ReasonPinMissing {
+		t.Fatalf("tamper: %+v", d)
+	}
+	raw, err := os.ReadFile(bad)
+	if err != nil || string(raw) != "{not-json" {
+		t.Fatal("tampered pin must stay unrepaired")
+	}
+}
+
 func TestInspectPinFile(t *testing.T) {
 	dir := t.TempDir()
 	missing := filepath.Join(dir, "nope.json")

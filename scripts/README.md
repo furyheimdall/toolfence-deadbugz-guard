@@ -4,7 +4,7 @@
 
 Fixture loop against `mock-mcp-deadbugz` (benign allow / poison deny). Not a live host attach.
 
-A–F stay the existing sidecar/mockmcp tests. **G/H** (#32) are headless E2E in this script: wrap `--approve-file` after a nonempty `FLIP_PATH` diff, plus HITL hook/stub deny and timeout. I/J belong to other owners — do not add them here.
+A–F stay the existing sidecar/mockmcp tests. **G/H** (#32) are headless E2E in this script: wrap `--approve-file` after a nonempty `FLIP_PATH` diff, plus HITL hook/stub deny and timeout. **I** (#33) is headless wrap `PIN_MISSING` / pin tamper (no silent re-pin; explicit approve still required). J belongs to another owner — do not add it here.
 
 ```bash
 ./scripts/smoke.sh

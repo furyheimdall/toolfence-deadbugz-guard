@@ -44,18 +44,19 @@ func EnsurePinDir(path string) error {
 }
 
 // GateFromPinFile installs a core.MemoryGate from a pin file.
-// Missing / unreadable pin yields an empty fail-closed gate (PIN_MISSING).
+// Missing / unreadable / tampered pin yields an empty fail-closed gate
+// (PIN_MISSING). Evaluate never repairs the file.
 func GateFromPinFile(path string) core.Gate {
 	g := core.NewMemoryGate()
+	if InspectPinFile(path) != PinFileOK {
+		return g
+	}
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return g
 	}
 	var p core.Pin
 	if err := json.Unmarshal(b, &p); err != nil {
-		return g
-	}
-	if p.Aggregate == "" {
 		return g
 	}
 	_ = g.InstallInitialPin(p)

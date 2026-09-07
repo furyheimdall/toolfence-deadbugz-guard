@@ -43,6 +43,26 @@ func TestWrapPinMissingIsToolCallFailure(t *testing.T) {
 	}
 }
 
+func TestWrapTamperedPinIsToolCallFailure(t *testing.T) {
+	cli, dir, stop := startWrap(t, wrapOpts{pinBytes: []byte("{not-json")})
+	defer stop()
+	res := mustRPC(t, cli, 1, "tools/list", map[string]any{})
+	if res.Error == nil {
+		t.Fatal("tampered pin must fail-closed")
+	}
+	data := rpcErrorData(t, res.Error)
+	if data["reason_code"] != "PIN_MISSING" {
+		t.Fatalf("tamper reason_code=%v", data["reason_code"])
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "pin.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != "{not-json" {
+		t.Fatal("wrap must not repair a tampered pin")
+	}
+}
+
 func TestWrapApproveBootstrapsWithoutTTY(t *testing.T) {
 	cli, dir, stop := startWrap(t, wrapOpts{pin: false, approve: true})
 	defer stop()
@@ -77,8 +97,9 @@ func TestWrapReloadSeesOutOfBandApprove(t *testing.T) {
 }
 
 type wrapOpts struct {
-	pin     bool
-	approve bool
+	pin      bool
+	approve  bool
+	pinBytes []byte // raw pin file; used for tamper / unreadable fixtures
 }
 
 func startWrap(t *testing.T, opt wrapOpts) (*rpcClient, string, func()) {
@@ -87,7 +108,12 @@ func startWrap(t *testing.T, opt wrapOpts) (*rpcClient, string, func()) {
 	flip := filepath.Join(dir, "flip.json")
 	atomicFlip(t, flip, mockmcp.ModeBenign)
 	pinPath := filepath.Join(dir, "pin.json")
-	if opt.pin {
+	switch {
+	case len(opt.pinBytes) > 0:
+		if err := os.WriteFile(pinPath, opt.pinBytes, PinFileMode); err != nil {
+			t.Fatal(err)
+		}
+	case opt.pin:
 		if _, err := WritePinFile(pinPath, "smoke-1", mockmcp.Tools(mockmcp.ModeBenign)); err != nil {
 			t.Fatal(err)
 		}
