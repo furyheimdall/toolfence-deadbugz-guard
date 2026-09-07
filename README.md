@@ -66,9 +66,9 @@ This is **not** a full stdio / multi-server gateway product (epic OUT).
 
 Pipelock is a full egress firewall with drift detect; Deadbugz is a thin durable-pin sidecar that fails closed until re-approval.
 
-Pipelock is the nearest public OSS peer (~835★): a full **egress firewall** where SHA-256 drift detect and `action:ask` HITL are one feature among many — session/scan-oriented, with Pro pricing.
+Pipelock is the nearest public OSS peer (~835★): a full **egress firewall** where SHA-256 drift detect and `action:ask` HITL are one feature among many — session/scan-oriented. Competitor price anchor only: **Founding Pro $49/mo** (Pipelock's pricing, not ours).
 
-Deadbugz guard’s product spine is the **durable pin**: pin → live `tools/list` diff → **fail-closed until HITL re-approval**. It sits beside the host MCP path as a thin sidecar/plugin.
+Deadbugz guard's product spine is the **durable pin**: pin → live `tools/list` diff → **fail-closed until HITL re-approval**. It sits beside the host MCP path as a thin sidecar/plugin.
 
 ## Core loop
 
