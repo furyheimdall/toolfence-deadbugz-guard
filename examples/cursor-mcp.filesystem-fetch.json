@@ -1,0 +1,42 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "deadbugz-guard",
+      "args": [
+        "--pin", "/home/you/.deadbugz/pins/filesystem.json",
+        "--audit", "/home/you/.deadbugz/audit.jsonl",
+        "--hitl", "http://127.0.0.1:8765",
+        "--call-gate", "3",
+        "--",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/home/you/allowed-dir"
+      ],
+      "env": {
+        "PIN_PATH": "/home/you/.deadbugz/pins/filesystem.json",
+        "AUDIT_PATH": "/home/you/.deadbugz/audit.jsonl",
+        "HITL_ENDPOINT": "http://127.0.0.1:8765",
+        "CALL_GATE": "3"
+      }
+    },
+    "fetch": {
+      "command": "deadbugz-guard",
+      "args": [
+        "--pin", "/home/you/.deadbugz/pins/fetch.json",
+        "--audit", "/home/you/.deadbugz/audit.jsonl",
+        "--hitl", "http://127.0.0.1:8765",
+        "--call-gate", "3",
+        "--",
+        "uvx",
+        "mcp-server-fetch"
+      ],
+      "env": {
+        "PIN_PATH": "/home/you/.deadbugz/pins/fetch.json",
+        "AUDIT_PATH": "/home/you/.deadbugz/audit.jsonl",
+        "HITL_ENDPOINT": "http://127.0.0.1:8765",
+        "CALL_GATE": "3"
+      }
+    }
+  }
+}
