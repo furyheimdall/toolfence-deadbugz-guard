@@ -90,14 +90,18 @@ go build -o bin/mock-mcp-deadbugz ./cmd/mock-mcp-deadbugz
 # write a pin from the benign fixture (uses core.PinTools)
 ./bin/deadbugz-guard --write-pin --pin testdata/pin.json --from-mode benign
 
+# non-TTY approve (프롬프트 없음. IDE가 띄운 wrap에는 TTY가 없습니다)
+./bin/deadbugz-guard approve --name filesystem --pin ~/.deadbugz/pins/filesystem.json -- \
+  ./bin/mock-mcp-deadbugz
+
 # primary attach: stdio wrap
 ./bin/deadbugz-guard --pin testdata/pin.json --audit testdata/audit.jsonl \
   --hitl http://127.0.0.1:8765 --call-gate 3 -- ./bin/mock-mcp-deadbugz
 ```
 
-host plugin 형태 (Cursor / Claude Desktop 스타일)는 [`examples/plugin.json`](examples/plugin.json)에 있습니다. 한 장짜리: [plugin guide](docs/plugin-guide.md). Cursor에서 Filesystem + Fetch를 60초 안에 wrap하려면: [plugin guide — Cursor 60-second CTA](docs/plugin-guide.md#cursor-60-second-cta).
+host plugin 형태 (Cursor / Claude Desktop)는 [`examples/plugin.json`](examples/plugin.json)과 [`examples/cursor.mcp.json`](examples/cursor.mcp.json)에 있습니다. 한 장짜리: [plugin guide](docs/plugin-guide.md) — 프로젝트 `.cursor/mcp.json`과 사용자 `~/.cursor/mcp.json`, Filesystem + Fetch wrap, 절대 `PATH`, pin mode 0600, MCP Logs. 60초 CTA: [plugin guide — Cursor 60-second CTA](docs/plugin-guide.md#cursor-60-second-cta).
 
-Flags / env: `--pin` / `PIN_PATH`, `--audit` / `AUDIT_PATH`, `--hitl` / `HITL_ENDPOINT`, `--call-gate` / `CALL_GATE` (Deadbugz path, default **3**).
+Flags / env: `--pin` / `PIN_PATH`, `--name` / `DEADBUGZ_SERVER_NAME`, `--approve` / `DEADBUGZ_APPROVE`, `--approve-file` / `DEADBUGZ_APPROVE_FILE`, `--audit` / `AUDIT_PATH`, `--hitl` / `HITL_ENDPOINT`, `--call-gate` / `CALL_GATE` (Deadbugz path, default **3**).
 
 ## Compose (옆에 붙이기)
 
@@ -151,7 +155,7 @@ Deadbugz guard는 **얇은 sidecar/plugin**입니다. 제품 카테고리를 바
 
 - [Landing](docs/landing.md) — OSS 파일럿 포지셔닝
 - [Launch note](docs/launch-note.md) — 한 줄 포지션, 설치/랜딩 링크, GitHub About에 붙여 넣을 문구
-- [Plugin guide](docs/plugin-guide.md) — `examples/plugin.json`으로 Cursor / Claude Desktop wrap. [Cursor 60초 Filesystem + Fetch CTA](docs/plugin-guide.md#cursor-60-second-cta)
+- [Plugin guide](docs/plugin-guide.md) — Cursor `.cursor/mcp.json` / `~/.cursor/mcp.json` Filesystem + Fetch wrap, non-TTY approve. [60초 CTA](docs/plugin-guide.md#cursor-60-second-cta)
 - [흐름도](#검사는-이렇게-돌아갑니다) — Agent → Deadbugz guard → MCP server, allow vs deny ([SVG](docs/assets/flow-allow-deny.svg))
 - [Demo](docs/demo.md) — benign → allow vs poison → deny, 그리고 스모크 replay
 - [Security](SECURITY.md) — MVP 루프의 threat model

@@ -76,6 +76,8 @@ type Wrap struct {
 	syncCh  chan mcpio.Message
 	syncMu  sync.Mutex // one in-flight deadbugz-sync at a time
 	syncN   atomic.Uint64
+
+	gateMu sync.Mutex
 }
 
 // Run is the stdio wrap loop: client <-> this process <-> downstream server.
@@ -219,7 +221,7 @@ func (w *Wrap) pumpServer(ctx context.Context, serverOut io.Reader, clientOut io
 		w.mu.Unlock()
 
 		if deny, dec := w.denyToolsListForward(msg, method); deny {
-			log.Printf("deadbugz tools/list deny reason=%s", dec.ReasonCode)
+			w.logDeny(dec)
 			if err := w.writeClientDenyTo(cw, msg.ID, dec); err != nil {
 				return err
 			}
@@ -283,10 +285,6 @@ func (w *Wrap) syncToolsList() ([]core.ToolDef, error) {
 	return tools, nil
 }
 
-func (w *Wrap) evaluateLive(live []core.ToolDef) core.GateDecision {
-	return w.Gate.Evaluate(context.Background(), live)
-}
-
 // denyToolsListForward hashes/diffs a tools/list result before the host sees
 // it. Parse failure is fail-closed (INTERNAL_ERROR) — never forward an
 // unhashed listing.
@@ -329,25 +327,68 @@ func (w *Wrap) track(id, method string) {
 	w.mu.Unlock()
 }
 
+func (w *Wrap) evaluateLive(live []core.ToolDef) core.GateDecision {
+	w.gateMu.Lock()
+	defer w.gateMu.Unlock()
+	// Re-read the pin file so `deadbugz-guard approve` (no TTY) is visible
+	// on the next tools/list without an interactive prompt.
+	if w.Cfg.PinPath != "" {
+		w.Gate = GateFromPinFile(w.Cfg.PinPath)
+		bindProcessConfig(w.Gate, w.Cfg)
+	}
+	if w.Gate == nil {
+		return core.Deny(core.ReasonInternalError, nil)
+	}
+	dec := w.Gate.Evaluate(context.Background(), live)
+	if dec.Allowed {
+		return dec
+	}
+	if p, ok, err := ApplyNonTTYApprove(w.Cfg, dec.ReasonCode, live); err != nil {
+		log.Printf("deadbugz-guard non-TTY approve failed: %v", err)
+	} else if ok {
+		log.Printf("deadbugz-guard non-TTY approve wrote pin %s hash=%s mode=0600", w.Cfg.PinPath, p.Aggregate)
+		w.Gate = GateFromPinFile(w.Cfg.PinPath)
+		bindProcessConfig(w.Gate, w.Cfg)
+		dec = w.Gate.Evaluate(context.Background(), live)
+		if dec.Allowed {
+			return dec
+		}
+	}
+	if err := WritePendingSnapshot(w.Cfg.PinPath, dec.ReasonCode, live, dec.Diff); err != nil {
+		log.Printf("deadbugz-guard pending snapshot: %v", err)
+	}
+	return dec
+}
+
+func (w *Wrap) logDeny(dec core.GateDecision) {
+	log.Printf("deadbugz-guard deny reason=%s pin=%s name=%s (Cursor: Output panel → MCP Logs). non-TTY approve: deadbugz-guard approve --pin %s -- -- <server>",
+		dec.ReasonCode, w.Cfg.PinPath, w.Cfg.ServerName, w.Cfg.PinPath)
+}
+
 func (w *Wrap) writeClientDeny(id json.RawMessage, dec core.GateDecision) error {
+	w.logDeny(dec)
 	return w.writeClientDenyTo(mcpio.NewWriter(w.clientOut), id, dec)
 }
 
 func (w *Wrap) writeClientDenyTo(cw *mcpio.Writer, id json.RawMessage, dec core.GateDecision) error {
 	w.clientMu.Lock()
 	defer w.clientMu.Unlock()
+	hint := fmt.Sprintf("non-TTY: deadbugz-guard approve --pin %s -- -- <server>; or DEADBUGZ_APPROVE=1 for first PIN_MISSING only. Cursor: Output → MCP Logs", w.Cfg.PinPath)
 	data := map[string]any{
-		"reason_code": dec.ReasonCode,
-		"call_gate":   w.Cfg.CallGate,
-		"hitl":        w.Cfg.HITLEndpoint,
-		"audit_path":  w.Cfg.AuditPath,
+		"reason_code":  dec.ReasonCode,
+		"call_gate":    w.Cfg.CallGate,
+		"hitl":         w.Cfg.HITLEndpoint,
+		"audit_path":   w.Cfg.AuditPath,
+		"pin_path":     w.Cfg.PinPath,
+		"server_name":  w.Cfg.ServerName,
+		"approve_hint": hint,
 	}
 	if dec.Diff != nil {
 		data["diff"] = dec.Diff
 	}
 	errObj := map[string]any{
 		"code":    failClosedCode,
-		"message": "deadbugz-guard: fail-closed",
+		"message": fmt.Sprintf("deadbugz-guard: %s", dec.ReasonCode),
 		"data":    data,
 	}
 	b, err := json.Marshal(errObj)

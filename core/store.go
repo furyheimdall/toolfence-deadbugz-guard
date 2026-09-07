@@ -78,6 +78,9 @@ func (f *FileStore) Save(p Pin) error {
 	if err := os.Rename(tmpName, f.Path); err != nil {
 		return err
 	}
+	if err := os.Chmod(f.Path, 0o600); err != nil {
+		return err
+	}
 	ok = true
 	return nil
 }

@@ -1,18 +1,58 @@
 {
   "mcpServers": {
-    "deadbugz-wrapped-example": {
-      "command": "deadbugz-guard",
+    "filesystem": {
+      "command": "/ABS/bin/deadbugz-guard",
       "args": [
-        "--pin", "/var/lib/deadbugz/pin.json",
-        "--audit", "/var/lib/deadbugz/audit.jsonl",
+        "--name", "filesystem",
+        "--pin", "~/.deadbugz/pins/filesystem.json",
+        "--audit", "~/.deadbugz/audit/filesystem.jsonl",
+        "--call-gate", "3",
+        "--",
+        "/ABS/npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/ABS/allowed-dir"
+      ],
+      "env": {
+        "DEADBUGZ_SERVER_NAME": "filesystem",
+        "PIN_PATH": "/HOME/.deadbugz/pins/filesystem.json",
+        "AUDIT_PATH": "/HOME/.deadbugz/audit/filesystem.jsonl",
+        "CALL_GATE": "3"
+      }
+    },
+    "fetch": {
+      "command": "/ABS/bin/deadbugz-guard",
+      "args": [
+        "--name", "fetch",
+        "--pin", "~/.deadbugz/pins/fetch.json",
+        "--audit", "~/.deadbugz/audit/fetch.jsonl",
+        "--call-gate", "3",
+        "--",
+        "/ABS/uvx",
+        "mcp-server-fetch"
+      ],
+      "env": {
+        "DEADBUGZ_SERVER_NAME": "fetch",
+        "PIN_PATH": "/HOME/.deadbugz/pins/fetch.json",
+        "AUDIT_PATH": "/HOME/.deadbugz/audit/fetch.jsonl",
+        "CALL_GATE": "3"
+      }
+    },
+    "deadbugz-wrapped-example": {
+      "command": "/ABS/bin/deadbugz-guard",
+      "args": [
+        "--name", "example",
+        "--pin", "~/.deadbugz/pins/example.json",
+        "--audit", "~/.deadbugz/audit/example.jsonl",
         "--hitl", "http://127.0.0.1:8765",
         "--call-gate", "3",
         "--",
         "your-mcp-server"
       ],
       "env": {
-        "PIN_PATH": "/var/lib/deadbugz/pin.json",
-        "AUDIT_PATH": "/var/lib/deadbugz/audit.jsonl",
+        "DEADBUGZ_SERVER_NAME": "example",
+        "PIN_PATH": "/HOME/.deadbugz/pins/example.json",
+        "AUDIT_PATH": "/HOME/.deadbugz/audit/example.jsonl",
         "HITL_ENDPOINT": "http://127.0.0.1:8765",
         "CALL_GATE": "3"
       }

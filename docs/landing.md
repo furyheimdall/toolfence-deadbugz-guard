@@ -66,7 +66,7 @@ Read [SECURITY.md](../SECURITY.md) for trust boundaries, the control table, and 
 ## Get involved
 
 1. Star [furyheimdall/toolfence-deadbugz-guard](https://github.com/furyheimdall/toolfence-deadbugz-guard) if the loop is useful.
-2. [Install](../README.md#install) the shipped sidecar: clone, `go build`, wrap with `deadbugz-guard -- <server>`. Host attach: [plugin guide](plugin-guide.md) + [`examples/plugin.json`](../examples/plugin.json). Cursor 60s Filesystem + Fetch wrap: [plugin guide](plugin-guide.md#cursor-60-second-cta).
+2. [Install](../README.md#install) the shipped sidecar: clone, `go build`, wrap with `deadbugz-guard -- <server>`. Host attach: [plugin guide](plugin-guide.md) + [`examples/plugin.json`](../examples/plugin.json) / [`examples/cursor.mcp.json`](../examples/cursor.mcp.json). Cursor 60s Filesystem + Fetch wrap: [plugin guide](plugin-guide.md#cursor-60-second-cta).
 3. Pick a [good first issue](../CONTRIBUTING.md#good-first-issues): hash-pin ([#3](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/3)), `tools/list` diff ([#4](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/4)), or local audit JSONL ([#8](https://github.com/furyheimdall/toolfence-deadbugz-guard/issues/8)).
 
 ```bash

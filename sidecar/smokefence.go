@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/furyheimdall/toolfence-deadbugz-guard/core"
 )
@@ -11,7 +12,7 @@ import (
 // Thin adapters over the merged #12 core contract.
 // Do not redefine ToolDiffSummary / GateDecision / Gate / Pin here.
 
-// WritePinFile hashes tools with core.PinTools and writes a core.Pin JSON file.
+// WritePinFile hashes tools with core.PinTools and writes a 0600 pin JSON file.
 func WritePinFile(path, version string, tools []core.ToolDef) (core.Pin, error) {
 	return WritePinFileWithConfig(path, version, tools, core.ConfigIdentity{})
 }
@@ -28,14 +29,18 @@ func WritePinFileWithConfig(path, version string, tools []core.ToolDef, cfg core
 	} else {
 		p = core.PinTools(tools, version)
 	}
-	b, err := json.MarshalIndent(p, "", "  ")
-	if err != nil {
-		return core.Pin{}, err
-	}
-	if err := os.WriteFile(path, append(b, '\n'), 0o644); err != nil {
+	if err := writeJSONFile(path, p); err != nil {
 		return core.Pin{}, fmt.Errorf("write pin: %w", err)
 	}
 	return p, nil
+}
+
+// EnsurePinDir creates the parent of path at 0700 (idempotent).
+func EnsurePinDir(path string) error {
+	if path == "" {
+		return fmt.Errorf("empty pin path")
+	}
+	return os.MkdirAll(filepath.Dir(path), PinDirMode)
 }
 
 // GateFromPinFile installs a core.MemoryGate from a pin file.

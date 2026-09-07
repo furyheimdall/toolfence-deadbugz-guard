@@ -2,11 +2,13 @@ package sidecar
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestSmokeCLIStdioWrap(t *testing.T) {
@@ -73,5 +75,41 @@ func TestSmokeCLIStdioWrap(t *testing.T) {
 	}
 	if err := json.Unmarshal(list.Result, &body); err != nil || len(body.Tools) != 2 {
 		t.Fatalf("tools: %+v err=%v", body, err)
+	}
+}
+
+func TestApproveCLIFromLiveServer(t *testing.T) {
+	dir := t.TempDir()
+	guard := filepath.Join(dir, "deadbugz-guard")
+	mock := filepath.Join(dir, "mock-mcp-deadbugz")
+	root, err := filepath.Abs("..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	build := func(out, pkg string) {
+		t.Helper()
+		cmd := exec.Command("go", "build", "-o", out, pkg)
+		cmd.Dir = root
+		if b, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("build %s: %v\n%s", pkg, err, b)
+		}
+	}
+	build(guard, "./cmd/deadbugz-guard")
+	build(mock, "./cmd/mock-mcp-deadbugz")
+
+	pin := filepath.Join(dir, "pins", "filesystem.json")
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, guard, "approve", "--name", "filesystem", "--pin", pin, "--", mock)
+	cmd.Env = append(os.Environ(), "MODE=benign")
+	if b, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("approve: %v\n%s", err, b)
+	}
+	st, err := os.Stat(pin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Mode().Perm() != 0o600 {
+		t.Fatalf("pin mode=%o", st.Mode().Perm())
 	}
 }
